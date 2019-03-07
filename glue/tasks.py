@@ -641,6 +641,11 @@ class WnliRecastProcessor(DataProcessor):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
 
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "test.tsv")), "dev")
+
     def get_labels(self):
         """See base class."""
         return [str(i) for i in range(self.NUM_CHOICES)]
