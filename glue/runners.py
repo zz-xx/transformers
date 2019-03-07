@@ -97,13 +97,13 @@ def convert_mc_example_to_feature(example, tokenizer, max_seq_length, label_map)
 
         label = example.label
 
-        features.append(
-            MCInputFeatures(
-                example_id=example.wnli_recast_id,
-                choices_features=choices_features,
-                label=label
-            )
+    features.append(
+        MCInputFeatures(
+            example_id=example.wnli_recast_id,
+            choices_features=choices_features,
+            label=label
         )
+    )
 
     return features
 
