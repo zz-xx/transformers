@@ -90,6 +90,7 @@ class WNLIRecastExample():
             ending_6,
             ending_7,
         ]
+        self.num_choices = len(self.endings)
         self.label = label
 
     def __str__(self):
@@ -98,17 +99,14 @@ class WNLIRecastExample():
     def __repr__(self):
         l = [
             "wnli_recast_id: {}".format(self.swag_id),
-            "context_sentence: {}".format(self.context_sentence),
-            "ending_0: {}".format(self.endings[0]),
-            "ending_1: {}".format(self.endings[1]),
-            "ending_2: {}".format(self.endings[2]),
-            "ending_3: {}".format(self.endings[3]),
-        ]
+            "context_sentence: {}".format(self.context_sentence)
+            ] + ["ending {}: {}".format(i, e) for i, e in enumerate(self.endings)]
 
         if self.label is not None:
             l.append("label: {}".format(self.label))
 
         return ", ".join(l)
+
 
 class TokenizedExample(object):
     def __init__(self, guid, tokens_a, tokens_b=None, label=None):

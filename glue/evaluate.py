@@ -131,7 +131,7 @@ def load_labels(task_name, data_dir):
 def load_preds(task_name, pred_file_path):
     pred_df = pd.read_csv(pred_file_path, header=None, sep="\t")
     output_mode = OUTPUT_MODES[task_name]
-    if output_mode == "classification":
+    if output_mode == "classification" or output_mode == "multiple_choice":
         pred_srs = pred_df.idxmax(axis=1)
     elif output_mode == "regression":
         pred_srs = pred_df[0]
