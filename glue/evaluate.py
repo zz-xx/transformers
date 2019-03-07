@@ -24,6 +24,7 @@ PROCESSORS = {
     "xnli": tasks.XnliProcessor,
     "snli": tasks.SnliProcessor,
     "bcs": tasks.BcsProcessor,
+    "roc": tasks.ROCProcessor,
 }
 OUTPUT_MODES = {
     "cola": "classification",
@@ -39,6 +40,7 @@ OUTPUT_MODES = {
     "xnli": "classification",
     "snli": "classification",
     "bcs": "classification",
+    "roc": "classification",
 }
 DEFAULT_FOL_NAMES = {
     "cola": "CoLA",
@@ -51,6 +53,7 @@ DEFAULT_FOL_NAMES = {
     "qnli": "QNLI",
     "rte": "RTE",
     "wnli": "WNLI",
+    "roc": "cloze",
 }
 
 
@@ -96,6 +99,8 @@ def compute_metrics(task_name, pred_srs, label_srs):
         return {"acc": simple_accuracy(pred_srs, label_srs)}
     elif task_name == "qnli":
         return {"acc": simple_accuracy(pred_srs, label_srs)}
+    elif task_name == "roc":
+        return acc_and_f1(pred_srs, label_srs)
     elif task_name == "rte":
         return {"acc": simple_accuracy(pred_srs, label_srs)}
     elif task_name == "wnli":
