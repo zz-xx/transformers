@@ -148,9 +148,10 @@ class MCInputFeatures(object):
             {
                 'input_ids': input_ids,
                 'input_mask': input_mask,
-                'segment_ids': segment_ids
+                'segment_ids': segment_ids,
+                'tokens': tokens,
             }
-            for _, input_ids, input_mask, segment_ids in choices_features
+            for _, input_ids, input_mask, segment_ids, tokens in choices_features
         ]
         self.label = label
 

@@ -93,7 +93,7 @@ def convert_mc_example_to_feature(example, tokenizer, max_seq_length, label_map)
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
 
-        choices_features.append((tokens, input_ids, input_mask, segment_ids))
+        choices_features.append((tokens, input_ids, input_mask, segment_ids, tokens))
 
         label = example.label
 
@@ -224,6 +224,16 @@ def convert_to_dataset(features, label_mode):
     return dataset, full_batch.tokens
 
 
+def select_field(features, field):
+    return [
+        [
+            choice[field]
+            for choice in feature.choices_features
+        ]
+        for feature in features
+    ]
+
+
 def features_to_data(features, label_mode):
     if label_mode == LabelModes.CLASSIFICATION:
         label_type = torch.long
@@ -231,6 +241,14 @@ def features_to_data(features, label_mode):
         label_type = torch.float
     else:
         raise KeyError(label_mode)
+    if isinstance(features[0], MCInputFeatures):
+        return Batch(
+            input_ids=torch.tensor(select_field(features, 'input_ids'), dtype=torch.long),
+            input_mask=torch.tensor(select_field(features, 'input_mask'), dtype=torch.long),
+            segment_ids=torch.tensor(select_field(features, 'segment_ids'), dtype=torch.long),
+            label_ids=torch.tensor([f.label for f in features], dtype=torch.long),
+            tokens=select_field(features, 'tokens'),
+        )
     return Batch(
         input_ids=torch.tensor([f.input_ids for f in features], dtype=torch.long),
         input_mask=torch.tensor([f.input_mask for f in features], dtype=torch.long),
