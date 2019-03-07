@@ -659,7 +659,7 @@ class WnliRecastProcessor(DataProcessor):
                 # ending_5=line[7],
                 # ending_6=line[8],
                 # ending_7=line[9],
-                label=int(line[6]) if is_training else None
+                label=int(line[6])
             ) for line in lines[1:] # we skip the line with the column names
         ]
         return examples
