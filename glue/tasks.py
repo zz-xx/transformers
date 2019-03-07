@@ -628,6 +628,7 @@ class ROCProcessor(DataProcessor):
 class WnliRecastProcessor(DataProcessor):
     """Processor for the WNLI data set recast as multiple choice"""
     TASK_TYPE = TaskType.MULTIPLE_CHOICE
+    NUM_CHOICES = 4
 
     def get_train_examples(self, data_dir):
         """See base class."""
@@ -642,7 +643,7 @@ class WnliRecastProcessor(DataProcessor):
 
     def get_labels(self):
         """See base class."""
-        return ["0", "1"]
+        return [str(i) for i in range(self.NUM_CHOICES)]
 
     def _create_examples(self, lines, set_type):
         """Creates examples for the training and dev sets."""

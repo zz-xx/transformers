@@ -352,6 +352,7 @@ class GlueTaskRunner:
     def run_train_step(self, step, batch, train_epoch_state):
         batch = batch.to(self.device)
         loss = self.model(batch.input_ids, batch.segment_ids, batch.input_mask, batch.label_ids)
+
         if self.rparams.n_gpu > 1:
             loss = loss.mean()  # mean() to average on multi-gpu.
         if self.rparams.gradient_accumulation_steps > 1:
