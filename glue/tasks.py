@@ -651,16 +651,9 @@ class WnliRecastProcessor(DataProcessor):
             WNLIRecastExample(
                 wnli_recast_id=line[0],
                 context_sentence=line[1],
-                ending_0=line[2],
-                ending_1=line[3],
-                ending_2=line[4],
-                ending_3=line[5],
-                # ending_4=line[6],
-                # ending_5=line[7],
-                # ending_6=line[8],
-                # ending_7=line[9],
-                label=int(line[6])
-            ) for line in lines[1:] # we skip the line with the column names
+                endings=[line[i] for i in range(2, len(line) -1)],
+                label=int(line[len(line) - 1])
+            ) for line in lines[1:]  # we skip the line with the column names
         ]
         return examples
 

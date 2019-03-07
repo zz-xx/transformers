@@ -69,27 +69,11 @@ class WNLIRecastExample():
     def __init__(self,
                  wnli_recast_id,
                  context_sentence,
-                 ending_0,
-                 ending_1,
-                 ending_2,
-                 ending_3,
-                 ending_4,
-                 ending_5,
-                 ending_6,
-                 ending_7,
+                 endings,
                  label=None):
         self.wnli_recast_id = wnli_recast_id
         self.context_sentence = context_sentence
-        self.endings = [
-            ending_0,
-            ending_1,
-            ending_2,
-            ending_3,
-            ending_4,
-            ending_5,
-            ending_6,
-            ending_7,
-        ]
+        self.endings = endings
         self.num_choices = len(self.endings)
         self.label = label
 
