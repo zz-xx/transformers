@@ -704,10 +704,10 @@ class Task:
         return self.processor.get_train_examples(self.data_dir)
 
     def get_dev_examples(self):
-        return self.processor.get_train_examples(self.data_dir)
+        return self.processor.get_dev_examples(self.data_dir)
 
     def get_test_examples(self):
-        return self.processor.get_train_examples(self.data_dir)
+        return self.processor.get_test_examples(self.data_dir)
 
     def get_labels(self):
         return self.processor.get_labels()
