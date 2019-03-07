@@ -67,7 +67,7 @@ def simple_accuracy(pred_srs, label_srs):
 
 
 def mc_recast_accuracy(pred_srs, label_srs):
-    label_srs = (pred_srs == 0).astype(int)  # Either it's the first option or its not, albeit there might be more...
+    pred_srs = (pred_srs == 0).astype(int)  # Either it's the first option or its not, albeit there might be more...
     return simple_accuracy(pred_srs, label_srs)
 
 
