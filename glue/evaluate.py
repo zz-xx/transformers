@@ -25,6 +25,7 @@ PROCESSORS = {
     "snli": tasks.SnliProcessor,
     "bcs": tasks.BcsProcessor,
     "roc": tasks.ROCProcessor,
+    "wnli_recast": tasks.WnliRecastProcessor,
 }
 OUTPUT_MODES = {
     "cola": "classification",
@@ -41,6 +42,7 @@ OUTPUT_MODES = {
     "snli": "classification",
     "bcs": "classification",
     "roc": "classification",
+    "wnli_recast": "multiple_choice",
 }
 DEFAULT_FOL_NAMES = {
     "cola": "CoLA",
@@ -54,6 +56,7 @@ DEFAULT_FOL_NAMES = {
     "rte": "RTE",
     "wnli": "WNLI",
     "roc": "cloze",
+    "wnli_recast": "WNLI_RECAST"
 }
 
 
@@ -105,6 +108,8 @@ def compute_metrics(task_name, pred_srs, label_srs):
         return {"acc": simple_accuracy(pred_srs, label_srs)}
     elif task_name == "wnli":
         return {"acc": simple_accuracy(pred_srs, label_srs)}
+    elif task_name == "wnli_recast":
+        return {"acc": simple_accuracy(pred_srs, label_srs)}
     else:
         raise KeyError(task_name)
 
@@ -113,7 +118,7 @@ def load_labels(task_name, data_dir):
     processor = PROCESSORS[task_name]()
     examples = processor.get_dev_examples(data_dir)
     output_mode = OUTPUT_MODES[task_name]
-    if output_mode == "classification":
+    if output_mode == "classification" or output_mode == "multiple_choice":
         label2idx = {label: num for (num, label) in enumerate(processor.get_labels())}
         label_srs = pd.Series([label2idx[example.label] for example in examples])
     elif output_mode == "regression":

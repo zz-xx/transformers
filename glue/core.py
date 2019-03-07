@@ -64,6 +64,51 @@ class InputExample(object):
             kwargs[k] = v
         return self.__class__(**kwargs)
 
+class WNLIRecastExample():
+    """A single training/test example for the SWAG dataset."""
+    def __init__(self,
+                 wnli_recast_id,
+                 context_sentence,
+                 ending_0,
+                 ending_1,
+                 ending_2,
+                 ending_3,
+                 ending_4,
+                 ending_5,
+                 ending_6,
+                 ending_7,
+                 label=None):
+        self.wnli_recast_id = wnli_recast_id
+        self.context_sentence = context_sentence
+        self.endings = [
+            ending_0,
+            ending_1,
+            ending_2,
+            ending_3,
+            ending_4,
+            ending_5,
+            ending_6,
+            ending_7,
+        ]
+        self.label = label
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self):
+        l = [
+            "wnli_recast_id: {}".format(self.swag_id),
+            "context_sentence: {}".format(self.context_sentence),
+            "ending_0: {}".format(self.endings[0]),
+            "ending_1: {}".format(self.endings[1]),
+            "ending_2: {}".format(self.endings[2]),
+            "ending_3: {}".format(self.endings[3]),
+        ]
+
+        if self.label is not None:
+            l.append("label: {}".format(self.label))
+
+        return ", ".join(l)
 
 class TokenizedExample(object):
     def __init__(self, guid, tokens_a, tokens_b=None, label=None):

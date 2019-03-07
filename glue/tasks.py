@@ -2,7 +2,7 @@ import csv
 import os
 import logging
 
-from .core import InputExample
+from .core import InputExample, WNLIRecastExample
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 class TaskType:
     REGRESSION = "REGRESSION"
     CLASSIFICATION = "CLASSIFICATION"
+    MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
 
 
 class DataProcessor(object):
@@ -593,6 +594,7 @@ class XnliProcessor(DataProcessor):
 
 class ROCProcessor(DataProcessor):
     """Processor for the ROC data set (Thibault weird recast)."""
+    TASK_TYPE = TaskType.CLASSIFICATION
 
     def get_train_examples(self, data_dir):
         """See base class."""
@@ -623,6 +625,46 @@ class ROCProcessor(DataProcessor):
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
+class WnliRecastProcessor(DataProcessor):
+    """Processor for the WNLI data set recast as multiple choice"""
+    TASK_TYPE = TaskType.MULTIPLE_CHOICE
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.tsv")))
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+
+        examples = [
+            WNLIRecastExample(
+                wnli_recast_id=line[0],
+                context_sentence=line[1],
+                ending_0=line[2],
+                ending_1=line[3],
+                ending_2=line[4],
+                ending_3=line[5],
+                ending_4=line[6],
+                ending_5=line[7],
+                ending_6=line[8],
+                ending_7=line[9],
+                label=int(line[10]) if is_training else None
+            ) for line in lines[1:] # we skip the line with the column names
+        ]
+        return examples
+
+
 PROCESSORS = {
     "cola": ColaProcessor,
     "sst": SstProcessor,
@@ -636,7 +678,8 @@ PROCESSORS = {
     "xnli": XnliProcessor,
     "snli": SnliProcessor,
     "bcs": BcsProcessor,
-    "roc": ROCProcessor
+    "roc": ROCProcessor,
+    "wnli_recast": WnliRecastProcessor,
 }
 
 
@@ -652,6 +695,7 @@ DEFAULT_FOLDER_NAMES = {
     "wnli": "WNLI",
     "snli": "SNLI",
     "roc": "cloze",
+    "wnli_recast": "WNLI_RECAST",
 }
 
 

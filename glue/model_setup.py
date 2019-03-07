@@ -3,7 +3,7 @@ import torch
 
 from pytorch_pretrained_bert.modeling import (
     BertConfig, BertForSequenceClassification, BertForSequenceRegression,
-    load_from_adapter,
+    BertForMultipleChoice, load_from_adapter,
 )
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 import pytorch_pretrained_bert.utils as utils
@@ -66,6 +66,12 @@ def create_from_pretrained(task_type, bert_model_name, cache_dir, num_labels):
             pretrained_model_name_or_path=bert_model_name,
             cache_dir=cache_dir,
         )
+    elif task_type == TaskType.MULTIPLE_CHOICE:
+        model = BertForMultipleChoice.from_pretrained(
+            pretrained_model_name_or_path=bert_model_name,
+            cache_dir=cache_dir,
+            num_labels=num_labels,
+        )
     else:
         raise KeyError(task_type)
     return model
@@ -107,6 +113,19 @@ def load_bert(task_type, bert_model_name, bert_load_mode, all_state, num_labels,
                 config_file=bert_config_json_path,
                 state_dict=state_dict,
             )
+    elif task_type == TaskType.MULTIPLE_CHOICE:
+        if bert_load_mode == "state_full_model":
+            model = BertForMultipleChoice.from_state_dict_full(
+                config_file=bert_config_json_path,
+                state_dict=state_dict,
+                num_labels=num_labels,
+            )
+        else:
+            model = BertForMultipleChoice.from_state_dict(
+                config_file=bert_config_json_path,
+                state_dict=state_dict,
+                num_labels=num_labels,
+            )
     else:
         raise KeyError(task_type)
     return model
@@ -134,6 +153,8 @@ def load_bert_adapter(task_type, bert_model_name, bert_load_mode, bert_load_args
     elif task_type == TaskType.REGRESSION:
         assert num_labels == 1
         model = BertForSequenceRegression(config)
+    elif task_type == TaskType.MULTIPLE_CHOICE:
+        model = BertForMultipleChoice(config, num_labels=num_labels)
     else:
         raise KeyError(task_type)
 
