@@ -70,7 +70,7 @@ def create_from_pretrained(task_type, bert_model_name, cache_dir, num_labels):
         model = BertForMultipleChoice.from_pretrained(
             pretrained_model_name_or_path=bert_model_name,
             cache_dir=cache_dir,
-            num_labels=num_labels,
+            num_choices=num_labels,
         )
     else:
         raise KeyError(task_type)
@@ -118,13 +118,13 @@ def load_bert(task_type, bert_model_name, bert_load_mode, all_state, num_labels,
             model = BertForMultipleChoice.from_state_dict_full(
                 config_file=bert_config_json_path,
                 state_dict=state_dict,
-                num_labels=num_labels,
+                num_choices=num_labels,
             )
         else:
             model = BertForMultipleChoice.from_state_dict(
                 config_file=bert_config_json_path,
                 state_dict=state_dict,
-                num_labels=num_labels,
+                num_choices=num_labels,
             )
     else:
         raise KeyError(task_type)
@@ -154,7 +154,7 @@ def load_bert_adapter(task_type, bert_model_name, bert_load_mode, bert_load_args
         assert num_labels == 1
         model = BertForSequenceRegression(config)
     elif task_type == TaskType.MULTIPLE_CHOICE:
-        model = BertForMultipleChoice(config, num_labels=num_labels)
+        model = BertForMultipleChoice(config, num_choices=num_labels)
     else:
         raise KeyError(task_type)
 
