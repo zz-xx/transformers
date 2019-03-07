@@ -26,6 +26,7 @@ PROCESSORS = {
     "bcs": tasks.BcsProcessor,
     "roc": tasks.ROCProcessor,
     "wnli_recast": tasks.WnliRecastProcessor,
+    "mnli_recast": tasks.MnliRecastProcessor,
 }
 
 OUTPUT_MODES = {
@@ -44,6 +45,7 @@ OUTPUT_MODES = {
     "bcs": "classification",
     "roc": "classification",
     "wnli_recast": "multiple_choice",
+    "mnli_recast": "multiple_choice",
 }
 
 DEFAULT_FOL_NAMES = {
@@ -58,7 +60,8 @@ DEFAULT_FOL_NAMES = {
     "rte": "RTE",
     "wnli": "WNLI",
     "roc": "cloze",
-    "wnli_recast": "WNLI_RECAST"
+    "wnli_recast": "WNLI_RECAST",
+    "mnli_recast": "MNLI_RECAST",
 }
 
 
@@ -116,6 +119,8 @@ def compute_metrics(task_name, pred_srs, label_srs):
     elif task_name == "wnli":
         return {"acc": simple_accuracy(pred_srs, label_srs)}
     elif task_name == "wnli_recast":
+        return {"acc": mc_recast_accuracy(pred_srs, label_srs)}
+    elif task_name == "mnli_recast":
         return {"acc": mc_recast_accuracy(pred_srs, label_srs)}
     else:
         raise KeyError(task_name)

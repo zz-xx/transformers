@@ -592,6 +592,7 @@ class XnliProcessor(DataProcessor):
                 InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
         return examples
 
+
 class ROCProcessor(DataProcessor):
     """Processor for the ROC data set (Thibault weird recast)."""
     TASK_TYPE = TaskType.CLASSIFICATION
@@ -624,6 +625,7 @@ class ROCProcessor(DataProcessor):
             examples.append(
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
+
 
 class WnliRecastProcessor(DataProcessor):
     """Processor for the WNLI data set recast as multiple choice"""
@@ -664,6 +666,44 @@ class WnliRecastProcessor(DataProcessor):
         return examples
 
 
+class MnliRecastProcessor(DataProcessor):
+    """Processor for the WNLI data set recast as multiple choice"""
+    TASK_TYPE = TaskType.MULTIPLE_CHOICE
+    NUM_CHOICES = 4
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.tsv")))
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+    def get_labels(self):
+        """See base class."""
+        return [str(i) for i in range(self.NUM_CHOICES)]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+
+        examples = [
+            WNLIRecastExample(
+                wnli_recast_id=line[0],
+                context_sentence=line[1],
+                endings=[line[i] for i in range(2, len(line) -1)],
+                label=int(line[len(line) - 1])
+            ) for line in lines[1:]  # we skip the line with the column names
+        ]
+        return examples
+
 PROCESSORS = {
     "cola": ColaProcessor,
     "sst": SstProcessor,
@@ -679,6 +719,7 @@ PROCESSORS = {
     "bcs": BcsProcessor,
     "roc": ROCProcessor,
     "wnli_recast": WnliRecastProcessor,
+    "mnli_recast": MnliRecastProcessor,
 }
 
 
@@ -695,6 +736,7 @@ DEFAULT_FOLDER_NAMES = {
     "snli": "SNLI",
     "roc": "cloze",
     "wnli_recast": "WNLI_RECAST",
+    "mnli_recast": "MNLI_RECAST",
 }
 
 
