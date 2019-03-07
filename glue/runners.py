@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from .core import InputFeatures, Batch, InputExample, TokenizedExample
+from .core import InputFeatures, MCInputFeatures, Batch, InputExample, WNLIRecastExample, TokenizedExample
 from .evaluate import compute_metrics
 from pytorch_pretrained_bert.utils import truncate_seq_pair
 from shared.runners import warmup_linear
@@ -42,7 +42,86 @@ def tokenize_example(example, tokenizer):
     )
 
 
+def convert_mc_examples_to_features(examples, tokenizer, max_seq_length, label_map):
+    """Loads a data file into a list of `InputBatch`s.
+
+     WNLIRecast is a multiple choice task. To perform this task using Bert,
+     we will use the formatting proposed in "Improving Language
+     Understanding by Generative Pre-Training" and suggested by
+     @jacobdevlin-google in this issue
+     https://github.com/google-research/bert/issues/38.
+
+     Each choice will correspond to a sample on which we run the
+     inference. For a given Swag example, we will create the 4
+     following inputs:
+     - [CLS] context [SEP] choice_1 [SEP]
+     - [CLS] context [SEP] choice_2 [SEP]
+     - [CLS] context [SEP] choice_3 [SEP]
+     - [CLS] context [SEP] choice_4 [SEP]
+     The model will output a single value for each input. To get the
+     final decision of the model, we will run a softmax over these 4
+     outputs.
+    """
+    features = []
+    for example_index, example in enumerate(examples):
+        context_tokens = tokenizer.tokenize(example.context_sentence)
+
+        choices_features = []
+        for ending_index, ending in enumerate(example.endings):
+            # We create a copy of the context tokens in order to be
+            # able to shrink it according to ending_tokens
+            context_tokens_choice = context_tokens[:]
+            ending_tokens = tokenizer.tokenize(ending)
+            # Modifies `context_tokens_choice` and `ending_tokens` in
+            # place so that the total length is less than the
+            # specified length.  Account for [CLS], [SEP], [SEP] with
+            # "- 3"
+            truncate_seq_pair(context_tokens_choice, ending_tokens, max_seq_length - 3)
+
+            tokens = ["[CLS]"] + context_tokens_choice + ["[SEP]"] + ending_tokens + ["[SEP]"]
+            segment_ids = [0] * (len(context_tokens_choice) + 2) + [1] * (len(ending_tokens) + 1)
+
+            input_ids = tokenizer.convert_tokens_to_ids(tokens)
+            input_mask = [1] * len(input_ids)
+
+            # Zero-pad up to the sequence length.
+            padding = [0] * (max_seq_length - len(input_ids))
+            input_ids += padding
+            input_mask += padding
+            segment_ids += padding
+
+            assert len(input_ids) == max_seq_length
+            assert len(input_mask) == max_seq_length
+            assert len(segment_ids) == max_seq_length
+
+            choices_features.append((tokens, input_ids, input_mask, segment_ids))
+
+        label = example.label
+        if example_index < 1:
+            logger.info("*** Example ***")
+            logger.info("wnli_recast_id: {}".format(example.wnli_recast_id))
+            for choice_idx, (tokens, input_ids, input_mask, segment_ids) in enumerate(choices_features):
+                logger.info("choice: {}".format(choice_idx))
+                logger.info("tokens: {}".format(' '.join(tokens)))
+                logger.info("input_ids: {}".format(' '.join(map(str, input_ids))))
+                logger.info("input_mask: {}".format(' '.join(map(str, input_mask))))
+                logger.info("segment_ids: {}".format(' '.join(map(str, segment_ids))))
+                logger.info("label: {}".format(label))
+
+        features.append(
+            MCInputFeatures(
+                example_id=example.wnli_recast_id,
+                choices_features=choices_features,
+                label=label
+            )
+        )
+
+    return features
+
+
 def convert_example_to_feature(example, tokenizer, max_seq_length, label_map):
+    if isinstance(example, WNLIRecastExample):
+        return convert_mc_examples_to_features(example, tokenizer, max_seq_length, label_map)
     if isinstance(example, InputExample):
         example = tokenize_example(example, tokenizer)
 
@@ -122,7 +201,7 @@ def convert_examples_to_features(examples, label_map, max_seq_length, tokenizer,
             max_seq_length=max_seq_length,
             label_map=label_map,
         )
-        if verbose and ex_index < 5:
+        if verbose and ex_index < 5 and isinstance(feature_instance, InputFeatures):
             logger.info("*** Example ***")
             logger.info("guid: %s" % example.guid)
             logger.info("tokens: %s" % " ".join([str(x) for x in feature_instance.tokens]))

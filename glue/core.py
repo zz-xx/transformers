@@ -136,6 +136,25 @@ class InputFeatures(object):
         return self.__class__(**kwargs)
 
 
+class MCInputFeatures(object):
+    def __init__(self,
+                 example_id,
+                 choices_features,
+                 label
+
+    ):
+        self.example_id = example_id
+        self.choices_features = [
+            {
+                'input_ids': input_ids,
+                'input_mask': input_mask,
+                'segment_ids': segment_ids
+            }
+            for _, input_ids, input_mask, segment_ids in choices_features
+        ]
+        self.label = label
+
+
 class Batch:
     def __init__(self, input_ids, input_mask, segment_ids, label_ids, tokens):
         self.input_ids = input_ids
