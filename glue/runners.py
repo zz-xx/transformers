@@ -293,7 +293,7 @@ class GlueTaskRunner:
                 tmp_eval_loss = self.model(batch.input_ids, batch.segment_ids,
                                            batch.input_mask, batch.label_ids)
                 logits = self.model(batch.input_ids, batch.segment_ids, batch.input_mask)
-                label_ids = batch.label_ids.cpu().numpy()
+            label_ids = batch.label_ids.cpu().numpy()
 
             logits = logits.detach().cpu().numpy()
             total_eval_loss += tmp_eval_loss.mean().item()

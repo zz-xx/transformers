@@ -238,7 +238,9 @@ def main():
     )
 
     if args.do_train:
-        assert at_most_one_of([args.do_val_history, args.train_save_every])
+        assert at_most_one_of([args.do_val_history,
+                               args.train_save_every,
+                               args.train_save_every_epoch])
         if args.do_val_history:
             val_examples = task.get_dev_examples()
             results = runner.run_train_val(
