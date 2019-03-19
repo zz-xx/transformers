@@ -138,8 +138,7 @@ def read_wnlir_examples(input_file, is_training):
     ]
     return examples
 
-def convert_examples_to_features(examples, tokenizer, max_seq_length,
-                                 is_training):
+def convert_examples_to_features(examples, tokenizer, max_seq_length, is_training):
     """Loads a data file into a list of `InputBatch`s."""
 
     # Swag is a multiple choice task. To perform this task using Bert,
