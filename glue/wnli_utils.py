@@ -100,14 +100,14 @@ def mask_predict_one_example(tokenizer, model, row, device):
     #             continue
 
     for i, tok_id in enumerate(b_ids):
-        if not any(tok_id == tok_group[0] for tok_group in tokens_b_token_groups):
+        to_mask = 0
+        for tok_group in tokens_b_token_groups:
+            length = len(tok_group)
+            if b_ids[i : i + length] == tok_group:  # We have a match!
+                if length > to_mask:
+                    to_mask = length
+        if not to_mask:
             continue
-        else:
-            to_mask = max(
-                len(tok_group)
-                for tok_group in tokens_b_token_groups
-                if tok_id == tok_group[0]
-            )
 
         tokenized_example_changed = copy.deepcopy(tokenized_example)
         for idx in range(i, i + to_mask):
@@ -124,6 +124,7 @@ def mask_predict_one_example(tokenizer, model, row, device):
         masked_indices = np.arange(batch.input_ids.shape[1])[
             batch.input_ids[0].cpu().numpy() == 103
         ]
+
         first_masked_index = masked_indices[0]
 
         preds_first_token = result[0][0, first_masked_index, :].cpu().numpy()
