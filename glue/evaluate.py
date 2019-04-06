@@ -119,7 +119,7 @@ def load_labels(task_name, data_dir):
 
 
 def load_preds(task_name, pred_file_path):
-    pred_df = pd.read_csv(pred_file_path, header=None, sep="\t")
+    pred_df = pd.read_csv(pred_file_path, header=None)
     output_mode = OUTPUT_MODES[task_name]
     if output_mode == "classification":
         pred_srs = pred_df.idxmax(axis=1)

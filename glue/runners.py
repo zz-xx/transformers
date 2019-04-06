@@ -280,8 +280,8 @@ class GlueTaskRunner:
             train_epoch_state.global_step += 1
 
     def run_val(self, val_examples, task_name, verbose=True):
-        val_dataloader = self.get_eval_dataloader(val_examples, verbose=verbose)
         self.model.eval()
+        val_dataloader = self.get_eval_dataloader(val_examples, verbose=verbose)
         total_eval_loss = 0
         nb_eval_steps, nb_eval_examples = 0, 0
         all_logits = []

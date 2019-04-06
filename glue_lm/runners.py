@@ -21,6 +21,7 @@ from glue_lm.core import Batch, InputFeatures
 
 
 logger = logging.getLogger(__name__)
+DEFAULT_SELECT_PROB = 0.15
 
 
 class TrainEpochState:
@@ -34,7 +35,7 @@ class TrainEpochState:
 
 
 def convert_example_to_features(example, tokenizer, max_seq_length, label_map,
-                                select_prob=0.15):
+                                select_prob=DEFAULT_SELECT_PROB):
     if isinstance(example, InputExample):
         example = tokenize_example(example, tokenizer)
 
@@ -55,7 +56,6 @@ def convert_example_to_features(example, tokenizer, max_seq_length, label_map,
         lm_label_ids = ([-1] + t1_label + [-1] + t2_label + [-1])
     else:
         lm_label_ids = ([-1] + t1_label + [-1])
-
 
     tokens = []
     segment_ids = []
@@ -110,7 +110,8 @@ def convert_example_to_features(example, tokenizer, max_seq_length, label_map,
     return features
 
 
-def convert_examples_to_features(examples, label_map, max_seq_length, tokenizer, verbose=True):
+def convert_examples_to_features(examples, label_map, max_seq_length, tokenizer,
+                                 verbose=True, select_prob=DEFAULT_SELECT_PROB):
     """Loads a data file into a list of `InputBatch`s."""
     features = []
     for (ex_index, example) in enumerate(examples):
@@ -119,6 +120,7 @@ def convert_examples_to_features(examples, label_map, max_seq_length, tokenizer,
             tokenizer=tokenizer,
             max_seq_length=max_seq_length,
             label_map=label_map,
+            select_prob=select_prob,
         )
         if verbose and ex_index < 5:
             logger.info("*** Example ***")
@@ -384,7 +386,7 @@ class GlueLMTaskRunner:
     def get_eval_dataloader(self, eval_examples, verbose=True):
         eval_features = convert_examples_to_features(
             eval_examples, self.label_map, self.rparams.max_seq_length, self.tokenizer,
-            verbose=verbose,
+            verbose=verbose, select_prob=0.,
         )
         eval_data, eval_tokens = convert_to_dataset(
             eval_features, label_mode=get_label_mode(self.label_map),

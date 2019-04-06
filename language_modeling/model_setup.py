@@ -20,7 +20,8 @@ def create_model(bert_model_name, bert_load_mode, bert_load_args,
             bert_model_name=bert_model_name,
             cache_dir=cache_dir,
         )
-    elif bert_load_mode in ["model_only", "state_model_only", "state_all", "state_full_model"]:
+    elif bert_load_mode in ["model_only", "state_model_only", "state_all", "state_full_model",
+                            "full_model_only"]:
         assert bert_load_args is None
         model = load_bert(
             bert_model_name=bert_model_name,
@@ -48,14 +49,14 @@ def load_bert(bert_model_name, bert_load_mode, all_state,
               bert_config_json_path=None):
     if bert_config_json_path is None:
         bert_config_json_path = os.path.join(get_bert_config_path(bert_model_name), "bert_config.json")
-    if bert_load_mode == "model_only":
+    if bert_load_mode in ("model_only", "full_model_only"):
         state_dict = all_state
     elif bert_load_mode in ["state_model_only", "state_all", "state_full_model"]:
         state_dict = all_state["model"]
     else:
         raise KeyError(bert_load_mode)
 
-    if bert_load_mode == "state_full_model":
+    if bert_load_mode in ("state_full_model", "full_model_only"):
         model = BertForPreTraining.from_state_dict_full(
             config_file=bert_config_json_path,
             state_dict=state_dict,

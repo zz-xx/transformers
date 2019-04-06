@@ -5,8 +5,6 @@ import pandas as pd
 
 import logging
 
-import torch.nn as nn
-
 from glue.tasks import get_task, MnliMismatchedProcessor
 from glue import model_setup as glue_model_setup
 from shared import model_setup as shared_model_setup
@@ -172,7 +170,8 @@ def main():
     )
     lm_model = lm_model_setup.create_model(
         bert_model_name=args.bert_model,
-        bert_load_mode=args.bert_load_mode,
+        # Hack
+        bert_load_mode="full_model_only",
         bert_load_args=args.bert_load_args,
         all_state=all_state,
         device=device,
@@ -308,15 +307,15 @@ def main():
             df = pd.DataFrame(results["logits"])
             df.to_csv(os.path.join(args.output_dir, "mm_val_preds.csv"), header=False, index=False)
             combined_metrics = {}
-            for k, v in results["metrics"]:
+            for k, v in results["metrics"].items():
                 combined_metrics[k] = v
-            for k, v in mm_results["metrics"]:
+            for k, v in mm_results["metrics"].items():
                 combined_metrics["mm-"+k] = v
             combined_metrics_str = json.dumps({
                 "loss": results["loss"],
                 "metrics": combined_metrics,
             }, indent=2)
-            with open(os.path.join(args.output_dir, "val_metrics.json"), "w") as f:
+            with open(os.path.join(args.output_dir, "mm_val_metrics.json"), "w") as f:
                 f.write(combined_metrics_str)
 
     if args.do_test:

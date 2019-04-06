@@ -70,6 +70,7 @@ def get_args(*in_args):
                         help="")
     parser.add_argument("--train_examples_number", type=int, default=None)
     parser.add_argument("--train_save_every", type=int, default=None)
+    parser.add_argument("--train_save_every_epoch", action="store_true")
     parser.add_argument("--do_lower_case",
                         action='store_true',
                         help="Set this flag if you are using an uncased model.")
@@ -201,7 +202,9 @@ def main():
     )
 
     if args.do_train:
-        assert at_most_one_of([args.do_val_history, args.train_save_every])
+        assert at_most_one_of([args.do_val_history,
+                               args.train_save_every,
+                               args.train_save_every_epoch])
         if args.do_val_history:
             val_examples = task.get_dev_examples()
             results = runner.run_train_val(
@@ -226,6 +229,19 @@ def main():
                             save_mode=args.bert_save_mode,
                             verbose=not args.not_verbose,
                         )
+        elif args.train_save_every_epoch:
+            train_dataloader = runner.get_train_dataloader(train_examples, verbose=not args.not_verbose)
+            for epoch in range(int(args.num_train_epochs)):
+                runner.run_train_epoch(train_dataloader)
+                glue_model_setup.save_bert(
+                    model=model,
+                    optimizer=optimizer, args=args,
+                    save_path=os.path.join(
+                        args.output_dir, f"all_state___epoch{epoch:04d}.p"
+                    ),
+                    save_mode=args.bert_save_mode,
+                    verbose=not args.not_verbose,
+                )
         else:
             runner.run_train(train_examples)
 
