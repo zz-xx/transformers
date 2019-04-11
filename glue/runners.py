@@ -27,6 +27,11 @@ class TrainEpochState:
         self.nb_tr_examples = 0
         self.nb_tr_steps = 0
 
+    def __str__(self):
+        s = f"global_step: {self.global_step}, tr_loss: {self.tr_loss}, " \
+            f"nb_tr_examples: {self.nb_tr_examples}, nb_tr_steps: {self.nb_tr_steps}"
+        return s
+
 
 def tokenize_example(example, tokenizer):
     tokens_a = tokenizer.tokenize(example.text_a)

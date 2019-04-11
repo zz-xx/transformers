@@ -5,9 +5,10 @@ import pandas as pd
 
 import logging
 
-from glue.tasks import get_task, MnliMismatchedProcessor
-from glue.runners import GlueTaskRunner, RunnerParameters
+from glue.tasks import MnliMismatchedProcessor
+from glue_multitask.runners import GlueMultitaskRunner, RunnerParameters
 from glue import model_setup as glue_model_setup
+from glue_multitask import multitask_model_setup as multitask_model_setup
 from shared import model_setup as shared_model_setup
 from pytorch_pretrained_bert.utils import at_most_one_of
 import shared.initialization as initialization
@@ -28,11 +29,11 @@ def get_args(*in_args):
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                         "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
                         "bert-base-multilingual-cased, bert-base-chinese.")
-    parser.add_argument("--task_name",
+    parser.add_argument("--task_name_ls",
                         default=None,
                         type=str,
                         required=True,
-                        help="The name of the task to train.")
+                        help="List of task names, comma-separated")
     parser.add_argument("--output_dir",
                         default=None,
                         type=str,
@@ -68,7 +69,10 @@ def get_args(*in_args):
     parser.add_argument("--do_val_history",
                         action='store_true',
                         help="")
+    parser.add_argument("--train_examples_number", type=str, default=None,
+                        help="int, or comma-separated list of ints")
     parser.add_argument("--train_save_every", type=int, default=None)
+    parser.add_argument("--train_save_every_epoch", action="store_true")
     parser.add_argument("--do_lower_case",
                         action='store_true',
                         help="Set this flag if you are using an uncased model.")
@@ -120,6 +124,10 @@ def get_args(*in_args):
     parser.add_argument('--print-trainable-params', action="store_true")
     parser.add_argument('--not-verbose', action="store_true")
     parser.add_argument('--force-overwrite', action="store_true")
+
+    parser.add_argument('--task_lr_scaler_ls', type=str, default=None)
+    parser.add_argument('--task_sampling_mode', type=str, default='basic')
+
     args = parser.parse_args(*in_args)
     return args
 
@@ -137,8 +145,11 @@ def main():
     initialization.init_train_batch_size(args)
     initialization.init_output_dir(args)
     initialization.save_args(args)
-    task = get_task(args.task_name, args.data_dir)
 
+    task_ls = multitask_model_setup.get_task_ls(
+        task_name_ls=args.task_name_ls,
+        data_dir=args.data_dir,
+    )
     tokenizer = shared_model_setup.create_tokenizer(
         bert_model_name=args.bert_model,
         bert_load_mode=args.bert_load_mode,
@@ -146,13 +157,12 @@ def main():
         bert_vocab_path=args.bert_vocab_path,
     )
     all_state = shared_model_setup.load_overall_state(args.bert_load_path, relaxed=True)
-    model = glue_model_setup.create_model(
-        task_type=task.processor.TASK_TYPE,
+    model = multitask_model_setup.create_model(
+        task_ls=task_ls,
         bert_model_name=args.bert_model,
         bert_load_mode=args.bert_load_mode,
         bert_load_args=args.bert_load_args,
         all_state=all_state,
-        num_labels=len(task.processor.get_labels()),
         device=device,
         n_gpu=n_gpu,
         fp16=args.fp16,
@@ -162,9 +172,16 @@ def main():
     if args.do_train:
         if args.print_trainable_params:
             log_info.print_trainable_params(model)
-        train_examples = task.get_train_examples()
+        train_examples_number_ls = multitask_model_setup.get_train_examples_number_ls(
+            args_train_examples_number=args.train_examples_number,
+            num_tasks=len(task_ls),
+        )
+        train_examples_dict = multitask_model_setup.get_train_examples_dict(
+            task_ls=task_ls,
+            train_examples_number_ls=train_examples_number_ls,
+        )
         t_total = shared_model_setup.get_opt_train_steps(
-            num_train_examples=len(train_examples),
+            num_train_examples=sum(len(train_examples) for train_examples in train_examples_dict.values()),
             args=args,
         )
         optimizer = shared_model_setup.create_optimizer(
@@ -177,20 +194,22 @@ def main():
             state_dict=all_state["optimizer"] if args.bert_load_mode == "state_all" else None,
         )
     else:
-        train_examples = None
+        train_examples_dict = None
         t_total = 0
         optimizer = None
 
-    runner = GlueTaskRunner(
+    runner = GlueMultitaskRunner(
         model=model,
         optimizer=optimizer,
         tokenizer=tokenizer,
-        label_list=task.get_labels(),
+        task_ls=task_ls,
         device=device,
         rparams=RunnerParameters(
             max_seq_length=args.max_seq_length,
             local_rank=args.local_rank, n_gpu=n_gpu, fp16=args.fp16,
             learning_rate=args.learning_rate, gradient_accumulation_steps=args.gradient_accumulation_steps,
+            task_lr_scaler_dict=RunnerParameters.format_task_lr_scaler_dict(args.task_lr_scaler_ls, task_ls),
+            task_sampling_mode=args.task_sampling_mode,
             t_total=t_total, warmup_proportion=args.warmup_proportion,
             num_train_epochs=args.num_train_epochs,
             train_batch_size=args.train_batch_size, eval_batch_size=args.eval_batch_size,
@@ -198,33 +217,17 @@ def main():
     )
 
     if args.do_train:
-        assert at_most_one_of([args.do_val_history, args.train_save_every])
+        assert at_most_one_of([args.do_val_history,
+                               args.train_save_every,
+                               args.train_save_every_epoch])
         if args.do_val_history:
-            val_examples = task.get_dev_examples()
-            results = runner.run_train_val(
-                train_examples=train_examples,
-                val_examples=val_examples,
-                task_name=task.name,
-            )
-            metrics_str = json.dumps(results, indent=2)
-            with open(os.path.join(args.output_dir, "val_metrics_history.json"), "w") as f:
-                f.write(metrics_str)
+            raise NotImplementedError()
         elif args.train_save_every:
-            train_dataloader = runner.get_train_dataloader(train_examples, verbose=not args.not_verbose)
-            for epoch in range(int(args.num_train_epochs)):
-                for step, _, _ in runner.run_train_epoch_context(train_dataloader):
-                    if step % args.train_save_every == args.train_save_every - 1 \
-                            or step == len(train_dataloader) - 1:
-                        glue_model_setup.save_bert(
-                            model=model, optimizer=optimizer, args=args,
-                            save_path=os.path.join(
-                                args.output_dir, f"all_state___epoch{epoch:04d}___batch{step:06d}.p"
-                            ),
-                            save_mode=args.bert_save_mode,
-                            verbose=not args.not_verbose,
-                        )
+            raise NotImplementedError()
+        elif args.train_save_every_epoch:
+            raise NotImplementedError()
         else:
-            runner.run_train(train_examples)
+            runner.run_train(train_examples_dict)
 
     if args.do_save:
         # Save a trained model
@@ -235,45 +238,45 @@ def main():
         )
 
     if args.do_val:
-        val_examples = task.get_dev_examples()
-        results = runner.run_val(val_examples, task_name=task.name, verbose=not args.not_verbose)
-        df = pd.DataFrame(results["logits"])
-        df.to_csv(os.path.join(args.output_dir, "val_preds.csv"), header=False, index=False)
-        metrics_str = json.dumps({"loss": results["loss"], "metrics": results["metrics"]}, indent=2)
+        val_examples_dict = multitask_model_setup.get_val_examples_dict(task_ls)
+        all_results = runner.run_val(val_examples_dict, verbose=False)
+        val_metrics = {}
+        for task_name, task_results in all_results.items():
+            df = pd.DataFrame(task_results["logits"])
+            df.to_csv(os.path.join(args.output_dir, f"{task_name}_val_preds.csv"), header=False, index=False)
+            val_metrics[task_name] = {"loss": task_results["loss"], "metrics": task_results["metrics"]}
+
+        # HACK for MNLI-mismatched
+        task_dict = {task.name: task for task in task_ls}
+        if "mnli" in task_dict:
+            task = task_dict["mnli"]
+            mm_val_examples = MnliMismatchedProcessor().get_dev_examples(task.data_dir)
+            mm_results = runner.runner_dict["mnli"].run_val(
+                mm_val_examples, task_name=task.name, verbose=False)
+            df = pd.DataFrame(all_results["mnli"]["logits"])
+            df.to_csv(os.path.join(args.output_dir, "mnli_mm_val_preds.csv"), header=False, index=False)
+            for k, v in mm_results["metrics"].items():
+                val_metrics["mnli"]["metrics"]["mm-"+k] = v
+
+        metrics_str = json.dumps(val_metrics, indent=2)
         print(metrics_str)
-        with open(os.path.join(args.output_dir, "val_metrics.json"), "w") as f:
+        with open(os.path.join(args.output_dir, f"val_metrics.json"), "w") as f:
             f.write(metrics_str)
 
-        # HACK for MNLI-mismatched
-        if task.name == "mnli":
-            mm_val_examples = MnliMismatchedProcessor().get_dev_examples(task.data_dir)
-            mm_results = runner.run_val(mm_val_examples, task_name=task.name, verbose=not args.not_verbose)
-            df = pd.DataFrame(results["logits"])
-            df.to_csv(os.path.join(args.output_dir, "mm_val_preds.csv"), header=False, index=False)
-            combined_metrics = {}
-            for k, v in results["metrics"]:
-                combined_metrics[k] = v
-            for k, v in mm_results["metrics"]:
-                combined_metrics["mm-"+k] = v
-            combined_metrics_str = json.dumps({
-                "loss": results["loss"],
-                "metrics": combined_metrics,
-            }, indent=2)
-            with open(os.path.join(args.output_dir, "val_metrics.json"), "w") as f:
-                f.write(combined_metrics_str)
-
     if args.do_test:
-        test_examples = task.get_test_examples()
-        logits = runner.run_test(test_examples, verbose=not args.not_verbose)
-        df = pd.DataFrame(logits)
-        df.to_csv(os.path.join(args.output_dir, "test_preds.csv"), header=False, index=False)
+        test_examples_dict = multitask_model_setup.get_test_examples_dict(task_ls)
+        all_logits = runner.run_test(test_examples_dict, verbose=False)
+        for task_name, task_logits in all_logits.items():
+            df = pd.DataFrame(task_logits)
+            df.to_csv(os.path.join(args.output_dir, f"{task_name}_test_preds.csv"), header=False, index=False)
 
         # HACK for MNLI-mismatched
-        if task.name == "mnli":
-            test_examples = MnliMismatchedProcessor().get_test_examples(task.data_dir)
-            logits = runner.run_test(test_examples)
+        task_dict = {task.name: task for task in task_ls}
+        if "mnli" in task_dict:
+            test_examples = MnliMismatchedProcessor().get_test_examples(task_dict["mnli"].data_dir)
+            logits = runner.runner_dict["mnli"](test_examples)
             df = pd.DataFrame(logits)
-            df.to_csv(os.path.join(args.output_dir, "mm_test_preds.csv"), header=False, index=False)
+            df.to_csv(os.path.join(args.output_dir, "mnli_mm_test_preds.csv"), header=False, index=False)
 
 
 if __name__ == "__main__":

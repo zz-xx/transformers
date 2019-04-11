@@ -50,6 +50,8 @@ def get_args(*in_args):
     parser.add_argument("--bert_vocab_path", default=None, type=str)
     parser.add_argument("--bert_save_mode", default="all", type=str)
 
+    parser.add_argument("--lm_bert_load_mode", default="full_model_only", type=str)
+
     # === Other parameters === #
     parser.add_argument("--max_seq_length",
                         default=128,
@@ -171,7 +173,7 @@ def main():
     lm_model = lm_model_setup.create_model(
         bert_model_name=args.bert_model,
         # Hack
-        bert_load_mode="full_model_only",
+        bert_load_mode=args.lm_bert_load_mode,
         bert_load_args=args.bert_load_args,
         all_state=all_state,
         device=device,
