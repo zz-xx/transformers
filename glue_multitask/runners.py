@@ -116,12 +116,12 @@ class GlueMultitaskRunner:
                 for _ in range(len(train_dataloader))
             ]
             random.shuffle(sampled_task_ls)
-        if self.rparams.task_sampling_mode == "minumum":
-            minimum = min(len(train_dataloader) for train_dataloader in train_dataloader_dict.items())
+        elif self.rparams.task_sampling_mode == "minimum":
+            minimum = min(len(train_dataloader) for train_dataloader in train_dataloader_dict.values())
             sampled_task_ls = list(train_dataloader_dict) * minimum
             random.shuffle(sampled_task_ls)
-        if self.rparams.task_sampling_mode == "maximum":
-            maximum = max(len(train_dataloader) for train_dataloader in train_dataloader_dict.items())
+        elif self.rparams.task_sampling_mode == "maximum":
+            maximum = max(len(train_dataloader) for train_dataloader in train_dataloader_dict.values())
             sampled_task_ls = list(train_dataloader_dict) * maximum
             random.shuffle(sampled_task_ls)
         else:
@@ -132,7 +132,12 @@ class GlueMultitaskRunner:
             for task_name, train_dataloader in train_dataloader_dict.items()
         }
         allow_repeat_iter_list = ["maximum"]
-        for task_name in sampled_task_ls:
+
+        for task_name, train_dataloader in train_dataloader_dict.items():
+            print(task_name, len(train_dataloader))
+
+        for i, task_name in enumerate(sampled_task_ls):
+            print("SAMPLING", i, len(sampled_task_ls))
             try:
                 yield task_name, next(iter_dict[task_name])
             except StopIteration:
