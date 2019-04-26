@@ -1,4 +1,5 @@
 import copy
+from typing import List, Mapping
 
 import numpy as np
 import spacy
@@ -40,19 +41,19 @@ MASK = "[MASK]"
 max_sequence_length = 128
 
 
-def get_pos(sent):
+def get_pos(sent: str):
     return [token.pos_ for token in nlp(sent)]
 
 
-def is_noun(pos):
+def is_noun(pos: str):
     return pos in ["PRON", "PROPN", "NOUN"]
 
 
-def get_pos_dict(sent):
+def get_pos_dict(sent: str):
     return {token.text.lower(): token.pos_ for token in nlp(sent)}
 
 
-def filter_pos_dict(pos_dict):
+def filter_pos_dict(pos_dict: Mapping):
     return {
         noun: pos
         for noun, pos in pos_dict.items()
@@ -60,7 +61,7 @@ def filter_pos_dict(pos_dict):
     }
 
 
-def get_token_groups(tokenizer, words):
+def get_token_groups(tokenizer, words: List[str]):
     return [tokenizer.convert_tokens_to_ids(tokenizer.tokenize(w)) for w in words]
 
 
@@ -79,7 +80,7 @@ def get_length_info(tok_a, tok_b):
     return sent_a_one_length, sent_b_one_length, same_length
 
 
-def _substitution_mask(sent1, sent2):
+def _substitution_mask(sent1: str, sent2: str):
     # Taken from https://github.com/tensorflow/models/blob/master/research/lm_commonsense/utils.py
     """
   Binary mask identifying substituted part in two sentences.
@@ -165,17 +166,9 @@ def get_features(tokenizer, tokens_masked):
     return features
 
 
-def compare_two_examples(tokenizer, model, sent1, sent2, device, mode):
+def compare_two_examples(tokenizer, model, sent1: str, sent2: str, device, mode: str):
     """
     Find which one of a pair of sentence is more likely
-    Args:
-        tokenizer:
-        model:
-        sent1:
-        sent2:
-        device: the torch device to put the model on
-
-    Returns:
     """
     tokens_1, tokens_2 = tokenizer.tokenize(sent1), tokenizer.tokenize(sent2)
     mask_1, mask_2 = _substitution_mask(tokens_1, tokens_2)
@@ -221,6 +214,8 @@ def compare_two_examples(tokenizer, model, sent1, sent2, device, mode):
             scores.append(score)
         most_predicted = np.argmax(scores)
         return most_predicted, same_length
+    else:
+        raise NotImplementedError(f"Mode {mode} is not implemented")
 
 
 def mask_predict_one_example(tokenizer, model, row, device):
