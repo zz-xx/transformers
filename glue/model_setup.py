@@ -3,7 +3,7 @@ import torch
 
 from pytorch_pretrained_bert.modeling import (
     BertConfig, BertForSequenceClassification, BertForSequenceRegression,
-    BertForMultipleChoice, load_from_adapter,
+    BertForMultipleChoice, load_from_adapter, BertModel,
 )
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 import pytorch_pretrained_bert.utils as utils
@@ -125,6 +125,18 @@ def load_bert(task_type, bert_model_name, bert_load_mode, all_state, num_labels,
                 config_file=bert_config_json_path,
                 state_dict=state_dict,
                 num_choices=num_labels,
+            )
+    elif task_type == TaskType.EXTRACTION:
+        assert num_labels == 1
+        if bert_load_mode == "state_full_model":
+            model = BertModel.from_state_dict_full(
+                config_file=bert_config_json_path,
+                state_dict=state_dict,
+            )
+        else:
+            model = BertModel.from_state_dict(
+                config_file=bert_config_json_path,
+                state_dict=state_dict,
             )
     else:
         raise KeyError(task_type)
