@@ -13,14 +13,14 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from shared import model_setup as shared_model_setup
 
 BERT_MODEL_NAME = "bert-large-uncased"
-conf_file = "/Users/thibault/.pytorch_pretrained_bert/"
-os.environ["BERT_ALL_DIR"] = conf_file
+# conf_file = "/Users/thibault/.pytorch_pretrained_bert/"
+# os.environ["BERT_ALL_DIR"] = conf_file
 
 rte_path = "/Users/thibault/Downloads/mnli__rte.p"
 
 
 def convert_examples_to_features(
-    examples, label_list, max_seq_length, tokenizer, verbose=True
+    examples, label_list, max_seq_length, tokenizer
 ):
     """Loads a data file into a list of `InputBatch`s."""
 
@@ -130,7 +130,7 @@ def get_args(*in_args):
         help="The directory where the data is saved",
     )
     parser.add_argument(
-        "--device", default="cpu", type=str, help="Device to compute embeddings"
+        "--device", default="cuda", type=str, help="Device to compute embeddings"
     )
     parser.add_argument(
         "--task_name",
@@ -225,7 +225,7 @@ def main():
 
         emb = compute_embeddings(model, features, args.batch_size)
         labels = np.array([f.label for f in examples])
-        with open(os.path.join(args.save_path, f"{split_name}.pkl"), "wb") as outfile:
+        with open(os.path.join(args.save_dir, f"{split_name}.pkl"), "wb") as outfile:
             pickle.dump([emb, labels], outfile)
 
 
