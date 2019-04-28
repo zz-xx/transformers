@@ -164,19 +164,19 @@ class InputFeatures(object):
         self.label_id = label_id
 
 
-def compute_embeddings(model, features, batch_size):
+def compute_embeddings(model, features, batch_size, device):
     n_examples = len(features)
     total = n_examples // batch_size + 1
     all_emb = []
     for i in tqdm.tqdm(range(0, n_examples, batch_size), total=total):
         feat = features[i : i + batch_size]
-        input_ids = torch.tensor([f.input_ids for f in feat], dtype=torch.long)
+        input_ids = torch.tensor([f.input_ids for f in feat], dtype=torch.long).to(device=device)
         input_mask = torch.tensor(
             [f.input_mask for f in feat], dtype=torch.long
-        )
+        ).to(device=device)
         segment_ids = torch.tensor(
             [f.segment_ids for f in feat], dtype=torch.long
-        )
+        ).to(device=device)
         _, res = model(input_ids, segment_ids, input_mask, False)
         all_emb.append(res.detach().cpu().numpy())
         del _, res
@@ -204,6 +204,7 @@ def main():
     model = load_bert(
         "EXTRACTION", BERT_MODEL_NAME, "model_only", all_state, 1
     ).to(args.device)
+    model.eval()
     logger.info("Getting task %s", task.name)
     processor = task.processor
     label_list = processor.get_labels()
@@ -223,7 +224,7 @@ def main():
             examples, label_list, 128, tokenizer
         )
 
-        emb = compute_embeddings(model, features, args.batch_size)
+        emb = compute_embeddings(model, features, args.batch_size, args.device)
         labels = np.array([f.label for f in examples])
         with open(os.path.join(args.save_dir, f"{split_name}.pkl"), "wb") as outfile:
             pickle.dump([emb, labels], outfile)
