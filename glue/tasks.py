@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 class TaskType:
     REGRESSION = "REGRESSION"
     CLASSIFICATION = "CLASSIFICATION"
+    SPAN_CHOICE = "SPAN_CHOICE"
 
 
 class DataProcessor(object):

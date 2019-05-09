@@ -1367,6 +1367,37 @@ class BertForQuestionAnswering(BertPreTrainedModel):
             return start_logits, end_logits
 
 
+class BertForHeadSelection(BertPreTrainedModel):
+    def __init__(self, config, num_labels):
+        super(BertForHeadSelection, self).__init__(config)
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+
+        # TODO: Generalize to N spans
+        self.span_a_linear = nn.Linear(config.hidden_size * 2, config.hidden_size)
+        self.span_b_linear = nn.Linear(config.hidden_size * 2, config.hidden_size)
+        self.final_linear = nn.Linear(config.hidden_size, num_labels)
+
+        self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, span_pronoun, span_a, span_b,
+                token_type_ids=None, attention_mask=None,
+                labels=None):
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+
+        1/0
+
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            return loss
+        else:
+            if return_attn:
+                return logits, attn
+            else:
+                return logits
+
+
 def sync_bert(bert_model_list):
     assert len(bert_model_list) >= 1
     bert = bert_model_list[0].bert

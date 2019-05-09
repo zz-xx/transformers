@@ -11,6 +11,8 @@ from pytorch_pretrained_bert.tokenization import (
 TF_PYTORCH_BERT_NAME_MAP = {
     "bert-base-uncased": "uncased_L-12_H-768_A-12",
     "bert-large-uncased": "uncased_L-24_H-1024_A-16",
+    "bert-base-cased": "cased_L-12_H-768_A-12",
+    "bert-large-cased": "cased_L-24_H-1024_A-16",
 }
 
 
