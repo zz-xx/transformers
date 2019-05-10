@@ -37,11 +37,11 @@ class TokenizedExample(BaseTokenizedExample):
     answer: List
     label_id: int
 
-    def featurize(self, tokenizer, max_seq_length, label_map):
+    def featurize(self, tokenizer, max_seq_length):
         paragraph = truncate_sequences(
             tokens_ls=[self.paragraph],
             max_length=max_seq_length - 4 - len(self.question) - len(self.answer),
-        )
+        )[0]
         tokens = [CLS] + paragraph + [SEP] + self.question + [SEP] + self.answer + [SEP]
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)

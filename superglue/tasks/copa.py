@@ -40,7 +40,7 @@ class TokenizedExample(BaseTokenizedExample):
     question: str  # Safe assumption that question is a single word
     label_id: int
 
-    def featurize(self, tokenizer, max_seq_length, label_map):
+    def featurize(self, tokenizer, max_seq_length):
         input_premise, input_choice1 = truncate_sequences(
             tokens_ls=[self.input_premise, self.input_choice1],
             max_length=max_seq_length - 5,

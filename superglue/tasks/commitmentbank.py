@@ -33,7 +33,7 @@ class TokenizedExample(BaseTokenizedExample):
     input_hypothesis: List
     label_id: int
 
-    def featurize(self, tokenizer, max_seq_length, label_map):
+    def featurize(self, tokenizer, max_seq_length):
         input_premise, input_hypothesis = truncate_sequences(
             tokens_ls=[self.input_premise, self.input_hypothesis],
             max_length=max_seq_length - 3,

@@ -1,3 +1,5 @@
+import os
+
 from .commitmentbank import CommitmentBankTask
 from .copa import CopaTask
 from .multirc import MultiRCTask
@@ -23,3 +25,11 @@ DEFAULT_FOLDER_NAMES = {
     "wic": "WiC",
     "wsc": "WSC",
 }
+
+
+def get_task(task_name, data_dir):
+    task_name = task_name.lower()
+    task_class = TASK_DICT[task_name]
+    if data_dir is None:
+        data_dir = os.path.join(os.environ["SUPERGLUE_DIR"], DEFAULT_FOLDER_NAMES[task_name])
+    return task_class(task_name, data_dir)

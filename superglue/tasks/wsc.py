@@ -36,15 +36,17 @@ class Example(BaseExample):
             text=self.text,
             bert_tokens=bert_tokens,
             span_ls=[[span1_start_idx, self.span1_text]],
+            check=False,
         )[0]
         span2_span = convert_char_span_for_bert_tokens(
             text=self.text,
             bert_tokens=bert_tokens,
             span_ls=[[span2_start_idx, self.span2_text]],
+            check=False,
         )[0]
         return TokenizedExample(
             guid=self.guid,
-            tokens=tokenizer.tokenize(bert_tokens),
+            tokens=bert_tokens,
             span1_span=span1_span,
             span2_span=span2_span,
             span1_text=self.span1_text,
@@ -63,11 +65,11 @@ class TokenizedExample(BaseTokenizedExample):
     span2_text: str
     label_id: int
 
-    def featurize(self, tokenizer, max_seq_length, label_map):
+    def featurize(self, tokenizer, max_seq_length):
         tokens = truncate_sequences(
             tokens_ls=[self.tokens],
             max_length=max_seq_length - 2,
-        )
+        )[0]
         tokens = [CLS] + tokens + [SEP]
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)

@@ -52,7 +52,7 @@ class BaseExample(ExtendedDataClassMixin):
 
 
 class BaseTokenizedExample(ExtendedDataClassMixin):
-    def featurize(self, tokenizer, max_seq_length, label_map):
+    def featurize(self, tokenizer, max_seq_length):
         raise NotImplementedError
 
 

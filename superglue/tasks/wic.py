@@ -57,7 +57,7 @@ class TokenizedExample(BaseTokenizedExample):
     sent2_span: List
     label_id: int
 
-    def featurize(self, tokenizer, max_seq_length, label_map):
+    def featurize(self, tokenizer, max_seq_length):
         sent1_tokens, sent2_tokens = truncate_sequences(
             tokens_ls=[self.sent1_tokens, self.sent2_tokens],
             max_length=max_seq_length - len(self.word) - 4,
@@ -137,7 +137,7 @@ class WicTask(Task):
     DataRow = DataRow
     Batch = Batch
 
-    LABELS = ["false", "true"]
+    LABELS = [False, True]
     LABEL_BIMAP = labels_to_bimap(LABELS)
 
     def get_train_examples(self):
