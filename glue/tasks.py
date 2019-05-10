@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 import logging
 
@@ -38,6 +39,14 @@ class DataProcessor(object):
                 lines.append(line)
             return lines
 
+    @classmethod
+    def _read_json_lines(cls, input_file):
+        with open(input_file, "r", encoding='utf-8') as f:
+            lines = []
+            for line in f:
+                lines.append(json.loads(line))
+            return lines
+
 
 class ColaProcessor(DataProcessor):
     """Processor for the Cola data set (GLUE version)."""
@@ -61,8 +70,9 @@ class ColaProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["0", "1"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -103,8 +113,9 @@ class SstProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["0", "1"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -144,8 +155,9 @@ class MrpcProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["0", "1"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -184,8 +196,9 @@ class StsbProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return [None]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -225,8 +238,9 @@ class QqpProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["0", "1"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -272,8 +286,9 @@ class MnliProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["contradiction", "entailment", "neutral"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -314,8 +329,9 @@ class MnliMismatchedProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["contradiction", "entailment", "neutral"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -356,8 +372,9 @@ class QnliProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["entailment", "not_entailment"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -397,8 +414,9 @@ class RteProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["entailment", "not_entailment"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -439,8 +457,9 @@ class WnliProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["0", "1"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -480,8 +499,9 @@ class SnliProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["contradiction", "entailment", "neutral"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -518,8 +538,9 @@ class BcsProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["0", "1"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -538,7 +559,7 @@ class XnliProcessor(DataProcessor):
     TASK_TYPE = TaskType.CLASSIFICATION
 
     def __init__(self):
-            self.language = "zh"
+        self.language = "zh"
 
     def get_train_examples(self, data_dir):
         """See base class."""
@@ -549,7 +570,7 @@ class XnliProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "train-%d" % (i)
+            guid = "train-%d" % i
             text_a = line[0]
             text_b = line[1]
             label = line[2]
@@ -566,7 +587,7 @@ class XnliProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "dev-%d" % (i)
+            guid = "dev-%d" % i
             language = line[0]
             if language != self.language:
                 continue
@@ -580,8 +601,9 @@ class XnliProcessor(DataProcessor):
     def get_labels(self):
         """See base class."""
         return ["contradiction", "entailment", "neutral"]
-
-    def _create_examples(self, lines, set_type):
+    
+    @classmethod
+    def _create_examples(cls, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
@@ -605,7 +627,6 @@ PROCESSORS = {
     "wnli": WnliProcessor,
     "xnli": XnliProcessor,
     "snli": SnliProcessor,
-    "bcs": BcsProcessor,
 }
 
 

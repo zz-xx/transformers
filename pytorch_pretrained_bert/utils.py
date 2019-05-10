@@ -46,6 +46,23 @@ def truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_b.pop()
 
 
+def truncate_sequences(tokens_ls, max_length):
+    lengths = [len(tokens) for tokens in tokens_ls]
+    total_length = sum(lengths)
+    if total_length < max_length:
+        return tokens_ls
+    divided_length = total_length // len(tokens_ls)
+    rem = total_length - divided_length
+    target_lengths = [
+        divided_length + (1 if i < rem else 0)
+        for i in range(len(tokens_ls))
+    ]
+    return [
+        tokens[:target_length]
+        for tokens, target_length in zip(tokens_ls, target_lengths)
+    ]
+
+
 def random_sample(ls, size, replace=True):
     indices = np.random.choice(range(len(ls)), size=size, replace=replace)
     return [ls[i] for i in indices]
