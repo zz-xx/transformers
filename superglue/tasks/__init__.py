@@ -4,7 +4,7 @@ from .commitmentbank import CommitmentBankTask
 from .copa import CopaTask
 from .multirc import MultiRCTask
 from .rte import RteTask
-from .wic import WicTask
+from .wic import WiCTask
 from .wsc import WSCTask
 
 
@@ -13,7 +13,7 @@ TASK_DICT = {
     "copa": CopaTask,
     "mrc": MultiRCTask,
     "rte": RteTask,
-    "wic": WicTask,
+    "wic": WiCTask,
     "wsc": WSCTask,
 }
 

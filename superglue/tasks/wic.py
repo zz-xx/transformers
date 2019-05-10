@@ -43,7 +43,7 @@ class Example(BaseExample):
             word=tokenizer.tokenize(self.word),  # might be more than one token
             sent1_span=sent1_span,
             sent2_span=sent2_span,
-            label_id=WicTask.LABEL_BIMAP.a[self.label],
+            label_id=WiCTask.LABEL_BIMAP.a[self.label],
         )
 
 
@@ -131,7 +131,7 @@ class Batch(BatchMixin):
         )
 
 
-class WicTask(Task):
+class WiCTask(Task):
     Example = Example
     TokenizedExample = Example
     DataRow = DataRow

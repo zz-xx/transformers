@@ -140,3 +140,25 @@ def main():
     initialization.init_output_dir(args)
     initialization.save_args(args)
     task = get_task(args.task_name, args.data_dir)
+
+    tokenizer = shared_model_setup.create_tokenizer(
+        bert_model_name=args.bert_model,
+        bert_load_mode=args.bert_load_mode,
+        do_lower_case=args.do_lower_case,
+        bert_vocab_path=args.bert_vocab_path,
+    )
+
+    all_state = shared_model_setup.load_overall_state(args.bert_load_path, relaxed=True)
+    model = glue_model_setup.create_model(
+        task_type=task.processor.TASK_TYPE,
+        bert_model_name=args.bert_model,
+        bert_load_mode=args.bert_load_mode,
+        bert_load_args=args.bert_load_args,
+        all_state=all_state,
+        num_labels=len(task.processor.get_labels()),
+        device=device,
+        n_gpu=n_gpu,
+        fp16=args.fp16,
+        local_rank=args.local_rank,
+        bert_config_json_path=args.bert_config_json_path,
+    )

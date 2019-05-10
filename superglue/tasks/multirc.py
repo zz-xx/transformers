@@ -96,7 +96,7 @@ class MultiRCTask(Task):
     DataRow = DataRow
     Batch = Batch
 
-    LABELS = [True, False]
+    LABELS = [False, True]
     LABEL_BIMAP = labels_to_bimap(LABELS)
 
     def __init__(self, name, data_dir, filter_sentences=True):
