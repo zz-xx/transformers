@@ -1,3 +1,4 @@
+import bs4
 import os
 
 import torch
@@ -13,35 +14,41 @@ from pytorch_pretrained_bert.utils import truncate_sequences, pad_to_max_seq_len
 @dataclass
 class Example(BaseExample):
     guid: str
-    input_premise: str
-    input_hypothesis: str
+    paragraph: str
+    question: str
+    answer: str
     label: str
 
     def tokenize(self, tokenizer):
         return TokenizedExample(
             guid=self.guid,
-            input_premise=tokenizer.tokenize(self.input_premise),
-            input_hypothesis=tokenizer.tokenize(self.input_hypothesis),
-            label_id=CommitmentBankTask.LABEL_BIMAP.a[self.label],
+            paragraph=tokenizer.tokenize(self.paragraph),
+            question=tokenizer.tokenize(self.question),
+            answer=tokenizer.tokenize(self.answer),
+            label_id=MultiRCTask.LABEL_BIMAP.a[self.label],
         )
 
 
 @dataclass
 class TokenizedExample(BaseTokenizedExample):
     guid: str
-    input_premise: List
-    input_hypothesis: List
+    paragraph: List
+    question: List
+    answer: List
     label_id: int
 
     def featurize(self, tokenizer, max_seq_length, label_map):
-        input_premise, input_hypothesis = truncate_sequences(
-            tokens_ls=[self.input_premise, self.input_hypothesis],
-            max_length=max_seq_length - 3,
+        paragraph = truncate_sequences(
+            tokens_ls=[self.paragraph],
+            max_length=max_seq_length - 4 - len(self.question) - len(self.answer),
         )
-        tokens = [CLS] + input_premise + [SEP] + input_hypothesis + [SEP]
+        tokens = [CLS] + paragraph + [SEP] + self.question + [SEP] + self.answer + [SEP]
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
-        segment_ids = [0] * (len(input_premise) + 2) + [1] * (len(input_hypothesis) + 1)
+        segment_ids = (
+            [0] * (len(paragraph) + 2)
+            + [1] * (len(self.question) + len(self.answer) + 2)
+        )
         input_mask = [1] * len(input_ids)
 
         return DataRow(
@@ -83,14 +90,20 @@ class Batch(BatchMixin):
         )
 
 
-class CommitmentBankTask(Task):
+class MultiRCTask(Task):
     Example = Example
     TokenizedExample = Example
     DataRow = DataRow
     Batch = Batch
 
-    LABELS = ["neutral", "entailment", "contradiction"]
+    LABELS = [True, False]
     LABEL_BIMAP = labels_to_bimap(LABELS)
+
+    def __init__(self, name, data_dir, filter_sentences=True):
+        super().__init__(name=name, data_dir=data_dir)
+        self.name = name
+        self.data_dir = data_dir
+        self.filter_sentences = filter_sentences
 
     def get_train_examples(self):
         return self._get_examples(set_type="train", file_name="train.jsonl")
@@ -104,14 +117,32 @@ class CommitmentBankTask(Task):
     def _get_examples(self, set_type, file_name):
         return self._create_examples(read_json_lines(os.path.join(self.data_dir, file_name)), set_type)
 
-    @classmethod
-    def _create_examples(cls, lines, set_type):
+    def _create_examples(self, lines, set_type):
         examples = []
         for line in lines:
-            examples.append(Example(
-                guid="%s-%s" % (set_type, line["idx"]),
-                input_premise=line["premise"],
-                input_hypothesis=line["hypothesis"],
-                label=line["label"] if set_type != "test" else cls.LABELS[-1],
-            ))
+            soup = bs4.BeautifulSoup(line["paragraph"]["text"], features="lxml")
+            sentence_ls = []
+            for i, elem in enumerate(soup.html.body.contents):
+                if isinstance(elem, bs4.element.NavigableString):
+                    sentence_ls.append(str(elem).strip())
+
+            for question_dict in line["paragraph"]["questions"]:
+                question = question_dict["question"]
+                if self.filter_sentences:
+                    paragraph = " ".join(
+                        sentence
+                        for i, sentence in enumerate(sentence_ls, start=1)
+                        if i in question_dict["sentences_used"]
+                    )
+                else:
+                    paragraph = " ".join(sentence_ls)
+                for answer_dict in question_dict["answers"]:
+                    answer = answer_dict["text"]
+                    examples.append(Example(
+                        guid="%s-%s" % (set_type, line["idx"]),
+                        paragraph=paragraph,
+                        question=question,
+                        answer=answer,
+                        label=answer_dict["isAnswer"] if set_type != "test" else self.LABELS[-1],
+                    ))
         return examples

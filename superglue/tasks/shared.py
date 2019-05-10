@@ -7,10 +7,9 @@ class Task:
     DataRow = None
     Batch = None
 
-    def __init__(self, name, processor, data_dir):
+    def __init__(self, name, data_dir):
         self.name = name
         self.data_dir = data_dir
-        self.task_type = processor.TASK_TYPE
 
     def get_train_examples(self):
         raise NotImplementedError

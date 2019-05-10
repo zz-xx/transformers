@@ -11,3 +11,4 @@ regex
 
 
 numpy
+bs4

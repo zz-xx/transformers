@@ -11,7 +11,6 @@ class IDS:
 
 
 class ExtendedDataClassMixin:
-    __dataclass_fields__ = NotImplemented
 
     def asdict(self):
         return {

@@ -63,6 +63,15 @@ def truncate_sequences(tokens_ls, max_length):
     ]
 
 
+def pad_to_max_seq_length(ls, max_seq_length, pad_idx=0, check=True):
+    padding = [pad_idx] * (max_seq_length - len(ls))
+    result = ls + padding
+
+    if check:
+        assert len(result) == max_seq_length
+    return result
+
+
 def random_sample(ls, size, replace=True):
     indices = np.random.choice(range(len(ls)), size=size, replace=replace)
     return [ls[i] for i in indices]

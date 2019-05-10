@@ -7,7 +7,7 @@ from typing import List
 from .shared import read_json_lines, Task
 from shared.core import BaseExample, BaseTokenizedExample, BaseDataRow, BatchMixin, labels_to_bimap
 from shared.constants import CLS, SEP
-from pytorch_pretrained_bert.utils import truncate_sequences
+from pytorch_pretrained_bert.utils import truncate_sequences, pad_to_max_seq_length
 
 
 @dataclass
@@ -44,15 +44,11 @@ class TokenizedExample(BaseTokenizedExample):
         segment_ids = [0] * (len(input_premise) + 2) + [1] * (len(input_hypothesis) + 1)
         input_mask = [1] * len(input_ids)
 
-        assert len(input_ids) == max_seq_length
-        assert len(input_mask) == max_seq_length
-        assert len(segment_ids) == max_seq_length
-
         return DataRow(
             guid=self.guid,
-            input_ids=input_ids,
-            input_mask=input_mask,
-            segment_ids=segment_ids,
+            input_ids=pad_to_max_seq_length(input_ids, max_seq_length),
+            input_mask=pad_to_max_seq_length(input_mask, max_seq_length),
+            segment_ids=pad_to_max_seq_length(segment_ids, max_seq_length),
             label_id=self.label_id,
             tokens=tokens,
         )
@@ -97,13 +93,13 @@ class RteTask(Task):
     LABEL_BIMAP = labels_to_bimap(LABELS)
 
     def get_train_examples(self):
-        return self._get_examples(set_type="train", file_name="train.tsv")
+        return self._get_examples(set_type="train", file_name="train.jsonl")
 
     def get_dev_examples(self):
-        return self._get_examples(set_type="dev", file_name="dev.tsv")
+        return self._get_examples(set_type="dev", file_name="val.jsonl")
 
     def get_test_examples(self):
-        return self._get_examples(set_type="test", file_name="test.tsv")
+        return self._get_examples(set_type="test", file_name="test.jsonl")
 
     def _get_examples(self, set_type, file_name):
         return self._create_examples(read_json_lines(os.path.join(self.data_dir, file_name)), set_type)
@@ -112,8 +108,6 @@ class RteTask(Task):
     def _create_examples(cls, lines, set_type):
         examples = []
         for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
             examples.append(Example(
                 guid="%s-%s" % (set_type, i),
                 input_premise=line["premise"],

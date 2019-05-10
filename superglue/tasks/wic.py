@@ -8,7 +8,7 @@ from .shared import read_json_lines, Task
 from shared.core import BaseExample, BaseTokenizedExample, BaseDataRow, BatchMixin, labels_to_bimap
 from shared.constants import CLS, SEP
 from shared.utils import convert_word_idx_for_bert_tokens
-from pytorch_pretrained_bert.utils import truncate_sequences
+from pytorch_pretrained_bert.utils import truncate_sequences, pad_to_max_seq_length
 
 
 @dataclass
@@ -80,15 +80,11 @@ class TokenizedExample(BaseTokenizedExample):
             self.sent2_span[1] + 3 + len(self.word) + len(sent1_tokens),
         ]
 
-        assert len(input_ids) == max_seq_length
-        assert len(input_mask) == max_seq_length
-        assert len(segment_ids) == max_seq_length
-
         return DataRow(
             guid=self.guid,
-            input_ids=input_ids,
-            input_mask=input_mask,
-            segment_ids=segment_ids,
+            input_ids=pad_to_max_seq_length(input_ids, max_seq_length),
+            input_mask=pad_to_max_seq_length(input_mask, max_seq_length),
+            segment_ids=pad_to_max_seq_length(segment_ids, max_seq_length),
             sent1_span=sent1_span,
             sent2_span=sent2_span,
             label_id=self.label_id,

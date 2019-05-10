@@ -7,39 +7,48 @@ from typing import List
 from .shared import read_json_lines, Task
 from shared.core import BaseExample, BaseTokenizedExample, BaseDataRow, BatchMixin, labels_to_bimap
 from shared.constants import CLS, SEP
-from shared.utils import convert_word_idx_for_bert_tokens
-from pytorch_pretrained_bert.utils import truncate_sequences
+from shared.utils import convert_char_span_for_bert_tokens
+from pytorch_pretrained_bert.utils import truncate_sequences, pad_to_max_seq_length
 
 
 @dataclass
 class Example(BaseExample):
     guid: str
     text: str
-    span1: int
-    span2: int
-    span1_idx: str
-    span2_idx: str
+    span1_idx: int
+    span2_idx: int
+    span1_text: str
+    span2_text: str
     label: str
 
     def tokenize(self, tokenizer):
-        tokens = tokenizer.tokenize(self.text)
-        sent1_span = convert_word_idx_for_bert_tokens(
-            text=self.sent1,
-            bert_tokens=sent1_tokens,
-            word_idx_ls=[self.sent1_idx],
+        text_tokens = self.text.split()
+        bert_tokens = tokenizer.tokenize(self.text)
+        if self.span1_idx == 0:
+            span1_start_idx = 0
+        else:
+            span1_start_idx = len(" ".join(text_tokens[:self.span1_idx]) + " ")
+        if self.span2_idx == 0:
+            span2_start_idx = 0
+        else:
+            span2_start_idx = len(" ".join(text_tokens[:self.span2_idx]) + " ")
+        span1_span = convert_char_span_for_bert_tokens(
+            text=self.text,
+            bert_tokens=bert_tokens,
+            span_ls=[[span1_start_idx, self.span1_text]],
         )[0]
-        sent2_span = convert_word_idx_for_bert_tokens(
-            text=self.sent2,
-            bert_tokens=sent2_tokens,
-            word_idx_ls=[self.sent2_idx],
+        span2_span = convert_char_span_for_bert_tokens(
+            text=self.text,
+            bert_tokens=bert_tokens,
+            span_ls=[[span2_start_idx, self.span2_text]],
         )[0]
         return TokenizedExample(
             guid=self.guid,
-            sent1_tokens=tokenizer.tokenize(self.sent1),
-            sent2_tokens=tokenizer.tokenize(self.sent2),
-            word=tokenizer.tokenize(self.word),  # might be more than one token
-            sent1_span=sent1_span,
-            sent2_span=sent2_span,
+            tokens=tokenizer.tokenize(bert_tokens),
+            span1_span=span1_span,
+            span2_span=span2_span,
+            span1_text=self.span1_text,
+            span2_text=self.span2_text,
             label_id=WSCTask.LABEL_BIMAP.a[self.label],
         )
 
@@ -47,50 +56,44 @@ class Example(BaseExample):
 @dataclass
 class TokenizedExample(BaseTokenizedExample):
     guid: str
-    sent1_tokens: List
-    sent2_tokens: List
-    word: List
-    sent1_span: List
-    sent2_span: List
+    tokens: List
+    span1_span: List
+    span2_span: List
+    span1_text: str
+    span2_text: str
     label_id: int
 
     def featurize(self, tokenizer, max_seq_length, label_map):
-        sent1_tokens, sent2_tokens = truncate_sequences(
-            tokens_ls=[self.sent1_tokens, self.sent2_tokens],
-            max_length=max_seq_length - len(self.word) - 4,
+        tokens = truncate_sequences(
+            tokens_ls=[self.tokens],
+            max_length=max_seq_length - 2,
         )
-        tokens = [CLS] + self.word + [SEP] + sent1_tokens + [SEP] + sent2_tokens + [SEP]
+        tokens = [CLS] + tokens + [SEP]
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
         # Don't have a choice here -- just leave words as part of sent1
-        segment_ids = (
-            [0] * (len(sent1_tokens) + len(self.word) + 3)
-            + [1] * (len(sent2_tokens) + 1)
-        )
+        segment_ids = [0] * len(tokens)
         input_mask = [1] * len(input_ids)
-        sent1_span = [
-            self.sent1_span[0] + 2 + len(self.word),
-            self.sent1_span[1] + 2 + len(self.word),
+        span1_span = [
+            self.span1_span[0] + 1,
+            self.span1_span[1] + 1,
         ]
-        sent2_span = [
-            self.sent2_span[0] + 3 + len(self.word) + len(sent1_tokens),
-            self.sent2_span[1] + 3 + len(self.word) + len(sent1_tokens),
+        span2_span = [
+            self.span2_span[0] + 1,
+            self.span2_span[1] + 1,
         ]
-
-        assert len(input_ids) == max_seq_length
-        assert len(input_mask) == max_seq_length
-        assert len(segment_ids) == max_seq_length
 
         return DataRow(
             guid=self.guid,
-            input_ids=input_ids,
-            input_mask=input_mask,
-            segment_ids=segment_ids,
-            sent1_span=sent1_span,
-            sent2_span=sent2_span,
+            input_ids=pad_to_max_seq_length(input_ids, max_seq_length),
+            input_mask=pad_to_max_seq_length(input_mask, max_seq_length),
+            segment_ids=pad_to_max_seq_length(segment_ids, max_seq_length),
+            span1_span=span1_span,
+            span2_span=span2_span,
             label_id=self.label_id,
             tokens=tokens,
-            word=self.word,
+            span1_text=self.span1_text,
+            span2_text=self.span2_text,
         )
 
 
@@ -100,11 +103,12 @@ class DataRow(BaseDataRow):
     input_ids: list
     input_mask: list
     segment_ids: list
-    sent1_span: list
-    sent2_span: list
+    span1_span: List
+    span2_span: List
     label_id: int
     tokens: list
-    word: List
+    span1_text: str
+    span2_text: str
 
 
 @dataclass
@@ -112,11 +116,12 @@ class Batch(BatchMixin):
     input_ids: torch.Tensor
     input_mask: torch.Tensor
     segment_ids: torch.Tensor
-    sent1_span: torch.Tensor
-    sent2_span: torch.Tensor
+    span1_span: torch.Tensor
+    span2_span: torch.Tensor
     label_ids: torch.Tensor
     tokens: list
-    word: list
+    span1_text: list
+    span2_text: list
 
     @classmethod
     def from_data_rows(cls, data_row_ls):
@@ -124,11 +129,12 @@ class Batch(BatchMixin):
             input_ids=torch.tensor([f.input_ids for f in data_row_ls], dtype=torch.long),
             input_mask=torch.tensor([f.input_mask for f in data_row_ls], dtype=torch.long),
             segment_ids=torch.tensor([f.segment_ids for f in data_row_ls], dtype=torch.long),
-            sent1_span=torch.tensor([f.sent1_span for f in data_row_ls], dtype=torch.long),
-            sent2_span=torch.tensor([f.sent2_span for f in data_row_ls], dtype=torch.long),
+            span1_span=torch.tensor([f.span1_span for f in data_row_ls], dtype=torch.long),
+            span2_span=torch.tensor([f.span2_span for f in data_row_ls], dtype=torch.long),
             label_ids=torch.tensor([f.label_id for f in data_row_ls], dtype=torch.long),
             tokens=[f.tokens for f in data_row_ls],
-            word=[f.word for f in data_row_ls],
+            span1_text=[f.span1_text for f in data_row_ls],
+            span2_text=[f.span2_text for f in data_row_ls],
         )
 
 
@@ -160,10 +166,10 @@ class WSCTask(Task):
             examples.append(Example(
                 guid="%s-%s" % (set_type, line["idx"]),
                 text=line["text"],
-                sent2=line["sentence2"],
-                word=line["word"],
-                sent1_idx=int(line["sentence1_idx"]),
-                sent2_idx=int(line["sentence2_idx"]),
+                span1_idx=line["target"]["span1_index"],
+                span2_idx=line["target"]["span2_index"],
+                span1_text=line["target"]["span1_text"],
+                span2_text=line["target"]["span2_text"],
                 label=line["label"] if set_type != "test" else cls.LABELS[-1],
             ))
         return examples
