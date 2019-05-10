@@ -220,7 +220,6 @@ def test_wic_tokenization():
     assert check_lists_equal(eel, [])
 
 
-
 def _wic_helper(path, tokenizer, key):
     with open(path, encoding='utf-8') as f:
         data = [
@@ -244,6 +243,53 @@ def _wic_helper(path, tokenizer, key):
         except AssertionError:
             encoding_error_ls.append(i)
     return pos_difference_ls, encoding_error_ls
+
+
+def test_wsc_tokenization():
+    os.environ["BERT_ALL_DIR"] = "/home/zphang/nyu/bowman/code/pytorch-pretrained-BERT/cache/bert_metadata"
+    tokenizer = shared_model_setup.create_tokenizer(
+        bert_model_name="bert-base-uncased",
+        bert_load_mode="model_only",
+        do_lower_case=True,
+        bert_vocab_path=None,
+    )
+    error_ls = _wsc_helper("/home/zphang/data/bowman/superglue/WSC/train.jsonl", tokenizer, "span1")
+    assert check_lists_equal(error_ls, [])
+    error_ls = _wsc_helper("/home/zphang/data/bowman/superglue/WSC/train.jsonl", tokenizer, "span2")
+    assert check_lists_equal(error_ls, [221, 270])
+    error_ls = _wsc_helper("/home/zphang/data/bowman/superglue/WSC/val.jsonl", tokenizer, "span1")
+    assert check_lists_equal(error_ls, [])
+    error_ls = _wsc_helper("/home/zphang/data/bowman/superglue/WSC/val.jsonl", tokenizer, "span2")
+    assert check_lists_equal(error_ls, [42, 73, 86])
+    error_ls = _wsc_helper("/home/zphang/data/bowman/superglue/WSC/test.jsonl", tokenizer, "span1")
+    assert check_lists_equal(error_ls, [80, 81, 82, 117, 119, 120, 144])
+    error_ls = _wsc_helper("/home/zphang/data/bowman/superglue/WSC/test.jsonl", tokenizer, "span2")
+    assert check_lists_equal(error_ls, [])
+
+
+def _wsc_helper(path, tokenizer, key):
+    with open(path, encoding='utf-8') as f:
+        data = [
+            json.loads(line)
+            for line in f
+        ]
+    error_ls = []
+    for i, datum in enumerate(data):
+        text_tokens = datum["text"].split()
+        bert_tokens = tokenizer.tokenize(datum["text"])
+        word_idx = datum["target"][f"{key}_index"]
+
+        if word_idx == 0:
+            start_idx = 0
+        else:
+            start_idx = len(" ".join(text_tokens[:word_idx]) + " ")
+        try:
+            shared.utils.convert_char_span_for_bert_tokens(
+                datum["text"], bert_tokens, [[start_idx, datum["target"][f"{key}_text"]]]
+            )
+        except AssertionError:
+            error_ls.append(i)
+    return error_ls
 
 
 def check_lists_equal(ls_a, ls_b):

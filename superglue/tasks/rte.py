@@ -4,7 +4,7 @@ import torch
 from dataclasses import dataclass
 from typing import List
 
-from .shared import read_tsv, Task
+from .shared import read_json_lines, Task
 from shared.core import BaseExample, BaseTokenizedExample, BaseDataRow, BatchMixin, labels_to_bimap
 from shared.constants import CLS, SEP
 from pytorch_pretrained_bert.utils import truncate_sequences
@@ -106,7 +106,7 @@ class RteTask(Task):
         return self._get_examples(set_type="test", file_name="test.tsv")
 
     def _get_examples(self, set_type, file_name):
-        return self._create_examples(read_tsv(os.path.join(self.data_dir, file_name)), set_type)
+        return self._create_examples(read_json_lines(os.path.join(self.data_dir, file_name)), set_type)
 
     @classmethod
     def _create_examples(cls, lines, set_type):
@@ -114,17 +114,10 @@ class RteTask(Task):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, i)
-            premise = line[1]
-            hypothesis = line[2]
-            if set_type == "test":
-                label = "entailment"
-            else:
-                label = line[-1]
             examples.append(Example(
-                guid=guid,
-                input_premise=premise,
-                input_hypothesis=hypothesis,
-                label=label,
+                guid="%s-%s" % (set_type, i),
+                input_premise=line["premise"],
+                input_hypothesis=line["hypothesis"],
+                label=line["label"] if set_type != "test" else cls.LABELS[-1],
             ))
         return examples

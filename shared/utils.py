@@ -10,7 +10,7 @@ def convert_char_span_for_bert_tokens(text, bert_tokens, span_ls, check=True):
     for span_start_idx, span_text in span_ls:
         before = text[:span_start_idx]
         chars_before = len(before.replace(" ", ""))
-        span_chars = len(span_text.replace(" ", ""))
+        span_chars = len("".join(span_text.split()))
         if chars_before == 0:
             start_idx = 0
         else:
@@ -20,7 +20,7 @@ def convert_char_span_for_bert_tokens(text, bert_tokens, span_ls, check=True):
 
         if check:
             bert_chars_str = bert_tokens_to_text(bert_tokens[start_idx:end_idx])
-            span_chars_str = span_text.replace(" ", "")
+            span_chars_str = "".join(span_text.split())
             assert bert_chars_str.lower() == span_chars_str.lower()
             assert bert_postsum[-1] == len(text.replace(" ", ""))
     return result_span_ls
