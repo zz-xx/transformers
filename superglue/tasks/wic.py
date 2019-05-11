@@ -73,11 +73,11 @@ class TokenizedExample(BaseTokenizedExample):
         input_mask = [1] * len(input_ids)
         sent1_span = [
             self.sent1_span[0] + 2 + len(self.word),
-            self.sent1_span[1] + 2 + len(self.word),
+            self.sent1_span[1] + 2 + len(self.word) - 1,
         ]
         sent2_span = [
             self.sent2_span[0] + 3 + len(self.word) + len(sent1_tokens),
-            self.sent2_span[1] + 3 + len(self.word) + len(sent1_tokens),
+            self.sent2_span[1] + 3 + len(self.word) + len(sent1_tokens) - 1,
         ]
 
         return DataRow(
@@ -104,6 +104,9 @@ class DataRow(BaseDataRow):
     label_id: int
     tokens: list
     word: List
+
+    def get_tokens(self):
+        return [self.tokens]
 
 
 @dataclass

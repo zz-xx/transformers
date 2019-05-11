@@ -63,6 +63,9 @@ class DataRow(BaseDataRow):
     label_id: int
     tokens: list
 
+    def get_tokens(self):
+        return [self.tokens]
+
 
 @dataclass
 class Batch(BatchMixin):

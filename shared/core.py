@@ -1,5 +1,3 @@
-from typing import NamedTuple
-
 import torch
 
 
@@ -14,7 +12,7 @@ class ExtendedDataClassMixin:
 
     @property
     def fields(self):
-        return self.__dataclass_fields__
+        return list(self.__dataclass_fields__)
 
     def asdict(self):
         return {
@@ -25,18 +23,18 @@ class ExtendedDataClassMixin:
     def new(self, **new_kwargs):
         kwargs = {
             k: v
-            for k, v in self.asdict()
+            for k, v in self.asdict().items()
         }
         for k, v in new_kwargs.items():
             kwargs[k] = v
         return self.__class__(**kwargs)
 
 
-class BatchMixin(NamedTuple):
+class BatchMixin(ExtendedDataClassMixin):
     def to(self, device):
-        return self.__class__({
+        return self.__class__(**{
             k: self._val_to_device(v, device)
-            for k, v in self._asdict()
+            for k, v in self.asdict().items()
         })
 
     @classmethod
@@ -47,7 +45,7 @@ class BatchMixin(NamedTuple):
             return v
 
     def __len__(self):
-        return len(getattr(self, self._fields[0]))
+        return len(getattr(self, self.fields[0]))
 
 
 class BaseExample(ExtendedDataClassMixin):

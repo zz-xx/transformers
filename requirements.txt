@@ -13,3 +13,5 @@ regex
 numpy
 bs4
 allennlp
+scikit-learn
+pandas

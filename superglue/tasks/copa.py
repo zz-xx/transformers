@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import List
 
 from .shared import read_json_lines, Task
-from shared.core import BaseExample, BaseTokenizedExample, BaseDataRow, BatchMixin
+from shared.core import BaseExample, BaseTokenizedExample, BaseDataRow, BatchMixin, labels_to_bimap
 from shared.constants import CLS, SEP
 from pytorch_pretrained_bert.utils import truncate_sequences, pad_to_max_seq_length
 
@@ -17,7 +17,7 @@ class Example(BaseExample):
     input_choice1: str
     input_choice2: str
     question: str
-    label_id: int
+    label: int
 
     def tokenize(self, tokenizer):
         return TokenizedExample(
@@ -27,7 +27,7 @@ class Example(BaseExample):
             input_choice2=tokenizer.tokenize(self.input_choice2),
             # Safe assumption that question is a single word
             question=tokenizer.tokenize(self.question)[0],
-            label_id=self.label_id,
+            label_id=CopaTask.LABEL_BIMAP.a[self.label],
         )
 
 
@@ -87,6 +87,9 @@ class DataRow(BaseDataRow):
     tokens1: list
     tokens2: list
 
+    def get_tokens(self):
+        return [self.tokens1, self.tokens2]
+
 
 @dataclass
 class Batch(BatchMixin):
@@ -122,6 +125,7 @@ class CopaTask(Task):
     Batch = Batch
 
     LABELS = [0, 1]
+    LABEL_BIMAP = labels_to_bimap(LABELS)
 
     def get_train_examples(self):
         return self._get_examples(set_type="train", file_name="train.jsonl")
@@ -145,6 +149,6 @@ class CopaTask(Task):
                 input_choice1=line["choice1"],
                 input_choice2=line["choice2"],
                 question=line["question"],
-                label_id=line["label"] if set_type != "test" else cls.LABELS[-1],
+                label=line["label"] if set_type != "test" else cls.LABELS[-1],
             ))
         return examples

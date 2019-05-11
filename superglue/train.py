@@ -7,10 +7,10 @@ import logging
 
 from superglue.tasks import get_task
 from glue.runners import RunnerParameters
-from . import runners
+from superglue.runners import SuperglueTaskRunner
 from shared import model_setup as shared_model_setup
 from glue import model_setup as glue_model_setup
-from . import model_setup
+from superglue import model_setup
 from pytorch_pretrained_bert.utils import at_most_one_of, random_sample
 import shared.initialization as initialization
 import shared.log_info as log_info
@@ -186,11 +186,11 @@ def main():
         t_total = 0
         optimizer = None
 
-    runner = GlueTaskRunner(
+    runner = SuperglueTaskRunner(
+        task=task,
         model=model,
         optimizer=optimizer,
         tokenizer=tokenizer,
-        label_list=task.get_labels(),
         device=device,
         rparams=RunnerParameters(
             max_seq_length=args.max_seq_length,
@@ -211,13 +211,12 @@ def main():
             results = runner.run_train_val(
                 train_examples=train_examples,
                 val_examples=val_examples,
-                task_name=task.name,
             )
             metrics_str = json.dumps(results, indent=2)
             with open(os.path.join(args.output_dir, "val_metrics_history.json"), "w") as f:
                 f.write(metrics_str)
         elif args.train_save_every:
-            train_dataloader = runner.get_train_dataloader(train_examples, verbose=not args.not_verbose)
+            train_dataloader = runner.get_train_dataloader(train_examples)
             for epoch in range(int(args.num_train_epochs)):
                 for step, _, _ in runner.run_train_epoch_context(train_dataloader):
                     if step % args.train_save_every == args.train_save_every - 1 \
@@ -231,7 +230,7 @@ def main():
                             verbose=not args.not_verbose,
                         )
         elif args.train_save_every_epoch:
-            train_dataloader = runner.get_train_dataloader(train_examples, verbose=not args.not_verbose)
+            train_dataloader = runner.get_train_dataloader(train_examples)
             for epoch in range(int(args.num_train_epochs)):
                 runner.run_train_epoch(train_dataloader)
                 glue_model_setup.save_bert(
@@ -254,23 +253,24 @@ def main():
             save_mode=args.bert_save_mode,
         )
 
-    """
     if args.do_val:
         val_examples = task.get_dev_examples()
-        results = runner.run_val(val_examples, task_name=task.name, verbose=not args.not_verbose)
+        results = runner.run_val(val_examples)
         df = pd.DataFrame(results["logits"])
         df.to_csv(os.path.join(args.output_dir, "val_preds.csv"), header=False, index=False)
-        metrics_str = json.dumps({"loss": results["loss"], "metrics": results["metrics"]}, indent=2)
+        metrics_str = json.dumps(
+            {"loss": results["loss"], "metrics": results["metrics"].asdict()},
+            indent=2,
+        )
         print(metrics_str)
         with open(os.path.join(args.output_dir, "val_metrics.json"), "w") as f:
             f.write(metrics_str)
 
     if args.do_test:
         test_examples = task.get_test_examples()
-        logits = runner.run_test(test_examples, verbose=not args.not_verbose)
+        logits = runner.run_test(test_examples)
         df = pd.DataFrame(logits)
         df.to_csv(os.path.join(args.output_dir, "test_preds.csv"), header=False, index=False)
-    """
 
 
 if __name__ == "__main__":

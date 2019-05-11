@@ -78,11 +78,11 @@ class TokenizedExample(BaseTokenizedExample):
         input_mask = [1] * len(input_ids)
         span1_span = [
             self.span1_span[0] + 1,
-            self.span1_span[1] + 1,
+            self.span1_span[1] + 1 - 1,
         ]
         span2_span = [
             self.span2_span[0] + 1,
-            self.span2_span[1] + 1,
+            self.span2_span[1] + 1 - 1,
         ]
 
         return DataRow(
@@ -111,6 +111,9 @@ class DataRow(BaseDataRow):
     tokens: list
     span1_text: str
     span2_text: str
+
+    def get_tokens(self):
+        return [self.tokens]
 
 
 @dataclass

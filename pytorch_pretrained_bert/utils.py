@@ -47,16 +47,18 @@ def truncate_seq_pair(tokens_a, tokens_b, max_length):
 
 
 def truncate_sequences(tokens_ls, max_length):
-    lengths = [len(tokens) for tokens in tokens_ls]
-    total_length = sum(lengths)
+    if len(tokens_ls) == 0:
+        return []
+    if len(tokens_ls) == 1:
+        return [tokens_ls[0][:max_length]]
+    lengths = np.array([len(tokens) for tokens in tokens_ls])
+    total_length = lengths.sum()
     if total_length < max_length:
         return tokens_ls
-    divided_length = total_length // len(tokens_ls)
-    rem = total_length - divided_length
-    target_lengths = [
-        divided_length + (1 if i < rem else 0)
-        for i in range(len(tokens_ls))
-    ]
+    target_lengths = lengths
+    while sum(target_lengths) > max_length:
+        target_lengths[np.argmax(target_lengths)] -= 1
+
     return [
         tokens[:target_length]
         for tokens, target_length in zip(tokens_ls, target_lengths)

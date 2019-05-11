@@ -57,7 +57,7 @@ class BertForJointMultipleChoice(BertPreTrainedModel):
 
         # New Version
         pooled_output_ls = [
-            self.classifier(self.dropout(pooled_output))
+            self.dropout(pooled_output)
             for _, pooled_output
             in bert_output_ls
         ]
@@ -66,7 +66,7 @@ class BertForJointMultipleChoice(BertPreTrainedModel):
 
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            loss = loss_fct(logits.view(-1, self.num_choices), labels.view(-1))
             return loss
         else:
             return logits
@@ -121,9 +121,9 @@ class CBModel(BertForSequenceClassification, TaskModel):
     def forward_batch(self, batch):
         return self(
             input_ids=batch.input_ids,
-            token_type_ids=batch.token_type_ids,
-            attention_mask=batch.attention_mask,
-            labels=batch.labels,
+            token_type_ids=batch.segment_ids,
+            attention_mask=batch.input_mask,
+            labels=batch.label_ids,
         )
 
     def forward_batch_hide_label(self, batch):
@@ -137,9 +137,9 @@ class CopaModel(BertForJointMultipleChoice, TaskModel):
     def forward_batch(self, batch):
         return self(
             input_ids_list=[batch.input_ids1, batch.input_ids2],
-            token_type_ids_list=[batch.token_type_ids1, batch.token_type_ids2],
-            attention_mask_list=[batch.attention_mask1, batch.attention_mask2],
-            labels=batch.labels,
+            token_type_ids_list=[batch.segment_ids1, batch.segment_ids2],
+            attention_mask_list=[batch.input_mask1, batch.input_mask2],
+            labels=batch.label_ids,
         )
 
     def forward_batch_hide_label(self, batch):
@@ -153,9 +153,9 @@ class MultiRCModel(BertForSequenceClassification, TaskModel):
     def forward_batch(self, batch):
         return self(
             input_ids=batch.input_ids,
-            token_type_ids=batch.token_type_ids,
-            attention_mask=batch.attention_mask,
-            labels=batch.labels,
+            token_type_ids=batch.segment_ids,
+            attention_mask=batch.input_mask,
+            labels=batch.label_ids,
         )
 
     def forward_batch_hide_label(self, batch):
@@ -169,9 +169,9 @@ class RTEModel(BertForSequenceClassification, TaskModel):
     def forward_batch(self, batch):
         return self(
             input_ids=batch.input_ids,
-            token_type_ids=batch.token_type_ids,
-            attention_mask=batch.attention_mask,
-            labels=batch.labels,
+            token_type_ids=batch.segment_ids,
+            attention_mask=batch.input_mask,
+            labels=batch.label_ids,
         )
 
     def forward_batch_hide_label(self, batch):
@@ -190,9 +190,9 @@ class WSCModel(BertForSpanComparisonClassification, TaskModel):
         return self(
             input_ids=batch.input_ids,
             spans=spans,
-            token_type_ids=batch.token_type_ids,
-            attention_mask=batch.attention_mask,
-            labels=batch.labels,
+            token_type_ids=batch.segment_ids,
+            attention_mask=batch.input_mask,
+            labels=batch.label_ids,
         )
 
     def forward_batch_hide_label(self, batch):
@@ -211,9 +211,9 @@ class WiCModel(BertForSpanComparisonClassification, TaskModel):
         return self(
             input_ids=batch.input_ids,
             spans=spans,
-            token_type_ids=batch.token_type_ids,
-            attention_mask=batch.attention_mask,
-            labels=batch.labels,
+            token_type_ids=batch.segment_ids,
+            attention_mask=batch.input_mask,
+            labels=batch.label_ids,
         )
 
     def forward_batch_hide_label(self, batch):

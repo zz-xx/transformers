@@ -18,6 +18,7 @@ class Example(BaseExample):
     question: str
     answer: str
     label: str
+    question_id: int
 
     def tokenize(self, tokenizer):
         return TokenizedExample(
@@ -69,6 +70,9 @@ class DataRow(BaseDataRow):
     segment_ids: list
     label_id: int
     tokens: list
+
+    def get_tokens(self):
+        return [self.tokens]
 
 
 @dataclass
@@ -126,7 +130,7 @@ class MultiRCTask(Task):
                 if isinstance(elem, bs4.element.NavigableString):
                     sentence_ls.append(str(elem).strip())
 
-            for question_dict in line["paragraph"]["questions"]:
+            for question_id, question_dict in enumerate(line["paragraph"]["questions"]):
                 question = question_dict["question"]
                 if self.filter_sentences:
                     paragraph = " ".join(
@@ -144,5 +148,6 @@ class MultiRCTask(Task):
                         question=question,
                         answer=answer,
                         label=answer_dict["isAnswer"] if set_type != "test" else self.LABELS[-1],
+                        question_id=question_id,
                     ))
         return examples

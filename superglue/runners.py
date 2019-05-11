@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from .evaluate import compute_metrics
+from .evaluate import compute_task_metrics
 from shared.runners import warmup_linear
 from glue.runners import TrainEpochState
 
@@ -24,22 +24,22 @@ class DatasetWithMetadata:
 
 def full_batch_to_dataset(full_batch):
     dataset_ls = []
-    other_ls = []
+    others_dict = {}
     descriptors = []
-    for i, (k, v) in enumerate(full_batch.asdict()):
+    for i, (k, v) in enumerate(full_batch.asdict().items()):
         if isinstance(v, torch.Tensor):
             descriptors.append(("dataset", k, len(dataset_ls)))
             dataset_ls.append(v)
         elif v is None:
             descriptors.append(("none", k, None))
         else:
-            descriptors.append(("other", k, len(other_ls)))
-            other_ls.append(v)
+            descriptors.append(("other", k, None))
+            others_dict[k] = v
     return DatasetWithMetadata(
         dataset=TensorDataset(*dataset_ls),
         metadata={
             "descriptors": descriptors,
-            "other": other_ls,
+            "other": others_dict,
         }
     )
 
@@ -49,6 +49,13 @@ def convert_examples_to_dataset(examples, tokenizer, max_seq_len, task):
         example.tokenize(tokenizer).featurize(tokenizer, max_seq_len)
         for example in examples
     ]
+    """
+    for i in range(2):
+        print(examples[i])
+        for i, tokens in enumerate(data_rows[i].get_tokens()):
+            print(i, tokens)
+        print("======")
+    """
     full_batch = task.Batch.from_data_rows(data_rows)
     dataset_with_metadata = full_batch_to_dataset(full_batch)
     return dataset_with_metadata
@@ -80,13 +87,11 @@ class HybridLoader:
 
 
 class SuperglueTaskRunner:
-    def __init__(self, task, model, optimizer, tokenizer, label_list, device, rparams):
+    def __init__(self, task, model, optimizer, tokenizer, device, rparams):
         self.task = task
         self.model = model
         self.optimizer = optimizer
         self.tokenizer = tokenizer
-        self.label_list = label_list
-        self.label_map = {v: i for i, v in enumerate(label_list)}
         self.device = device
         self.rparams = rparams
 
@@ -108,6 +113,7 @@ class SuperglueTaskRunner:
             self.run_train_epoch(train_dataloader)
             epoch_result = self.run_val(val_examples)
             del epoch_result["logits"]
+            epoch_result["metrics"] = epoch_result["metrics"].asdict()
             epoch_result_dict[i] = epoch_result
         return epoch_result_dict
 
@@ -128,7 +134,7 @@ class SuperglueTaskRunner:
 
     def run_train_step(self, step, batch, train_epoch_state):
         batch = batch.to(self.device)
-        loss = self.model(batch.input_ids, batch.segment_ids, batch.input_mask, batch.label_ids)
+        loss = self.model.forward_batch(batch)
         if self.rparams.n_gpu > 1:
             loss = loss.mean()  # mean() to average on multi-gpu.
         if self.rparams.gradient_accumulation_steps > 1:
@@ -139,7 +145,7 @@ class SuperglueTaskRunner:
             loss.backward()
 
         train_epoch_state.tr_loss += loss.item()
-        train_epoch_state.nb_tr_examples += batch.input_ids.size(0)
+        train_epoch_state.nb_tr_examples += len(batch)
         train_epoch_state.nb_tr_steps += 1
         if (step + 1) % self.rparams.gradient_accumulation_steps == 0:
             # modify learning rate with special warm up BERT uses
@@ -157,30 +163,26 @@ class SuperglueTaskRunner:
         total_eval_loss = 0
         nb_eval_steps, nb_eval_examples = 0, 0
         all_logits = []
-        all_labels = []
         for step, batch in enumerate(tqdm(val_dataloader, desc="Evaluating (Val)")):
             batch = batch.to(self.device)
 
             with torch.no_grad():
                 tmp_eval_loss = self.model.forward_batch(batch)
-                logits = self.model.forward_batch_no_label(batch)
-            label_ids = batch.label_ids.cpu().numpy()
+                logits = self.model.forward_batch_hide_label(batch)
 
             logits = logits.detach().cpu().numpy()
             total_eval_loss += tmp_eval_loss.mean().item()
 
-            nb_eval_examples += batch.input_ids.size(0)
+            nb_eval_examples += len(batch)
             nb_eval_steps += 1
             all_logits.append(logits)
-            all_labels.append(label_ids)
         eval_loss = total_eval_loss / nb_eval_steps
         all_logits = np.concatenate(all_logits, axis=0)
-        all_labels = np.concatenate(all_labels, axis=0)
 
         return {
             "logits": all_logits,
             "loss": eval_loss,
-            "metrics": compute_task_metrics(self.task, all_logits, all_labels),
+            "metrics": compute_task_metrics(self.task, all_logits, val_examples),
         }
 
     def run_test(self, test_examples):
@@ -190,7 +192,7 @@ class SuperglueTaskRunner:
         for step, batch in enumerate(tqdm(test_dataloader, desc="Predictions (Test)")):
             batch = batch.to(self.device)
             with torch.no_grad():
-                logits = self.model(batch.input_ids, batch.segment_ids, batch.input_mask)
+                logits = self.model.forward_batch(batch)
             logits = logits.detach().cpu().numpy()
             all_logits.append(logits)
         all_logits = np.concatenate(all_logits, axis=0)
