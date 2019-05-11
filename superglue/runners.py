@@ -192,9 +192,10 @@ class SuperglueTaskRunner:
         for step, batch in enumerate(tqdm(test_dataloader, desc="Predictions (Test)")):
             batch = batch.to(self.device)
             with torch.no_grad():
-                logits = self.model.forward_batch(batch)
+                logits = self.model.forward_batch_hide_label(batch)
             logits = logits.detach().cpu().numpy()
             all_logits.append(logits)
+
         all_logits = np.concatenate(all_logits, axis=0)
         return all_logits
 
