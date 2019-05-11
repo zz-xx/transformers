@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
+from allennlp.modules.span_extractors import SelfAttentiveSpanExtractor
 
 from pytorch_pretrained_bert.modeling import (
     BertPreTrainedModel, BertModel, BertForSequenceClassification
@@ -79,7 +80,7 @@ class BertForSpanComparisonClassification(BertPreTrainedModel):
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        self.span_attention_extractor = GetSpan()
+        self.span_attention_extractor = SelfAttentiveSpanExtractor(config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size * self.num_spans, self.num_labels)
 
         self.apply(self.init_bert_weights)
@@ -87,7 +88,10 @@ class BertForSpanComparisonClassification(BertPreTrainedModel):
     def forward(self, input_ids, spans,
                 token_type_ids=None, attention_mask=None,
                 labels=None):
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        sequence_output, _ = self.bert(
+            input_ids, token_type_ids, attention_mask,
+            output_all_encoded_layers=False,
+        )
         span_embeddings = self.span_attention_extractor(sequence_output, spans)
         span_embeddings = span_embeddings.view(-1, self.num_spans * self.config.hidden_size)
         span_embeddings = self.dropout(span_embeddings)
@@ -102,13 +106,11 @@ class BertForSpanComparisonClassification(BertPreTrainedModel):
             return logits
 
 
-class GetSpan(nn.Module):
-    def forward(self, embeddings, spans):
-        raise NotImplementedError
-
-
 class TaskModel:
     def forward_batch(self, batch):
+        raise NotImplementedError
+
+    def forward_batch_hide_label(self, batch):
         raise NotImplementedError
 
 
@@ -124,6 +126,9 @@ class CBModel(BertForSequenceClassification, TaskModel):
             labels=batch.labels,
         )
 
+    def forward_batch_hide_label(self, batch):
+        return self.forward_batch(batch.new(label_ids=None))
+
 
 class CopaModel(BertForJointMultipleChoice, TaskModel):
     def __init__(self, config):
@@ -136,6 +141,9 @@ class CopaModel(BertForJointMultipleChoice, TaskModel):
             attention_mask_list=[batch.attention_mask1, batch.attention_mask2],
             labels=batch.labels,
         )
+
+    def forward_batch_hide_label(self, batch):
+        return self.forward_batch(batch.new(label_ids=None))
 
 
 class MultiRCModel(BertForSequenceClassification, TaskModel):
@@ -150,6 +158,9 @@ class MultiRCModel(BertForSequenceClassification, TaskModel):
             labels=batch.labels,
         )
 
+    def forward_batch_hide_label(self, batch):
+        return self.forward_batch(batch.new(label_ids=None))
+
 
 class RTEModel(BertForSequenceClassification, TaskModel):
     def __init__(self, config):
@@ -163,15 +174,18 @@ class RTEModel(BertForSequenceClassification, TaskModel):
             labels=batch.labels,
         )
 
+    def forward_batch_hide_label(self, batch):
+        return self.forward_batch(batch.new(label_ids=None))
+
 
 class WSCModel(BertForSpanComparisonClassification, TaskModel):
     def __init__(self, config):
         super().__init__(config, num_spans=2, num_labels=2)
 
     def forward_batch(self, batch):
-        spans = torch.cat([
-            batch.span1_span.unsqueeze(-2),
-            batch.span2_span.unsqueeze(-2),
+        spans = torch.stack([
+            batch.span1_span,
+            batch.span2_span,
         ], dim=-2)
         return self(
             input_ids=batch.input_ids,
@@ -180,6 +194,9 @@ class WSCModel(BertForSpanComparisonClassification, TaskModel):
             attention_mask=batch.attention_mask,
             labels=batch.labels,
         )
+
+    def forward_batch_hide_label(self, batch):
+        return self.forward_batch(batch.new(label_ids=None))
 
 
 class WiCModel(BertForSpanComparisonClassification, TaskModel):
@@ -187,9 +204,9 @@ class WiCModel(BertForSpanComparisonClassification, TaskModel):
         super().__init__(config, num_spans=2, num_labels=2)
 
     def forward_batch(self, batch):
-        spans = torch.cat([
-            batch.sent1_span.unsqueeze(-2),
-            batch.sent2_span.unsqueeze(-2),
+        spans = torch.stack([
+            batch.sent1_span,
+            batch.sent2_span,
         ], dim=-2)
         return self(
             input_ids=batch.input_ids,
@@ -198,6 +215,9 @@ class WiCModel(BertForSpanComparisonClassification, TaskModel):
             attention_mask=batch.attention_mask,
             labels=batch.labels,
         )
+
+    def forward_batch_hide_label(self, batch):
+        return self.forward_batch(batch.new(label_ids=None))
 
 
 def map_task_to_model_class(task):

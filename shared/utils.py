@@ -15,7 +15,7 @@ def convert_char_span_for_bert_tokens(text, bert_tokens, span_ls, check=True):
             start_idx = 0
         else:
             start_idx = np.argmax(bert_postsum == chars_before) + 1
-        end_idx = np.argmax(bert_postsum == chars_before + span_chars) + 1  # inclusive
+        end_idx = np.argmax(bert_postsum == chars_before + span_chars) + 1  # exclusive
         result_span_ls.append([start_idx, end_idx])  # json compatibility
 
         if check:

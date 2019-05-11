@@ -12,10 +12,14 @@ class IDS:
 
 class ExtendedDataClassMixin:
 
+    @property
+    def fields(self):
+        return self.__dataclass_fields__
+
     def asdict(self):
         return {
             k: getattr(self, k)
-            for k in self.__dataclass_fields__
+            for k in self.fields
         }
 
     def new(self, **new_kwargs):
@@ -60,7 +64,7 @@ class BaseDataRow(ExtendedDataClassMixin):
     pass
 
 
-class BaseBatch(BatchMixin):
+class BaseBatch(BatchMixin, ExtendedDataClassMixin):
     @classmethod
     def from_data_rows(cls, data_row_ls):
         raise NotImplementedError

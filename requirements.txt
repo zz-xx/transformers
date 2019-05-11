@@ -12,3 +12,4 @@ regex
 
 numpy
 bs4
+allennlp

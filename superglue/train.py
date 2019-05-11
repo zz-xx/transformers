@@ -1,4 +1,4 @@
-import argparses
+import argparse
 import json
 import os
 import pandas as pd
@@ -6,9 +6,11 @@ import pandas as pd
 import logging
 
 from superglue.tasks import get_task
-from glue.runners import GlueTaskRunner, RunnerParameters
-from glue import model_setup as glue_model_setup
+from glue.runners import RunnerParameters
+from . import runners
 from shared import model_setup as shared_model_setup
+from glue import model_setup as glue_model_setup
+from . import model_setup
 from pytorch_pretrained_bert.utils import at_most_one_of, random_sample
 import shared.initialization as initialization
 import shared.log_info as log_info
@@ -147,18 +149,129 @@ def main():
         do_lower_case=args.do_lower_case,
         bert_vocab_path=args.bert_vocab_path,
     )
-
     all_state = shared_model_setup.load_overall_state(args.bert_load_path, relaxed=True)
-    model = glue_model_setup.create_model(
-        task_type=task.processor.TASK_TYPE,
+    model = model_setup.create_model(
+        task=task,
         bert_model_name=args.bert_model,
         bert_load_mode=args.bert_load_mode,
         bert_load_args=args.bert_load_args,
         all_state=all_state,
-        num_labels=len(task.processor.get_labels()),
         device=device,
         n_gpu=n_gpu,
         fp16=args.fp16,
         local_rank=args.local_rank,
         bert_config_json_path=args.bert_config_json_path,
     )
+    if args.do_train:
+        if args.print_trainable_params:
+            log_info.print_trainable_params(model)
+        train_examples = task.get_train_examples()
+        if args.train_examples_number is not None:
+            train_examples = random_sample(train_examples, args.train_examples_number)
+        t_total = shared_model_setup.get_opt_train_steps(
+            num_train_examples=len(train_examples),
+            args=args,
+        )
+        optimizer = shared_model_setup.create_optimizer(
+            model=model,
+            learning_rate=args.learning_rate,
+            t_total=t_total,
+            loss_scale=args.loss_scale,
+            fp16=args.fp16,
+            warmup_proportion=args.warmup_proportion,
+            state_dict=all_state["optimizer"] if args.bert_load_mode == "state_all" else None,
+        )
+    else:
+        train_examples = None
+        t_total = 0
+        optimizer = None
+
+    runner = GlueTaskRunner(
+        model=model,
+        optimizer=optimizer,
+        tokenizer=tokenizer,
+        label_list=task.get_labels(),
+        device=device,
+        rparams=RunnerParameters(
+            max_seq_length=args.max_seq_length,
+            local_rank=args.local_rank, n_gpu=n_gpu, fp16=args.fp16,
+            learning_rate=args.learning_rate, gradient_accumulation_steps=args.gradient_accumulation_steps,
+            t_total=t_total, warmup_proportion=args.warmup_proportion,
+            num_train_epochs=args.num_train_epochs,
+            train_batch_size=args.train_batch_size, eval_batch_size=args.eval_batch_size,
+        )
+    )
+
+    if args.do_train:
+        assert at_most_one_of([args.do_val_history,
+                               args.train_save_every,
+                               args.train_save_every_epoch])
+        if args.do_val_history:
+            val_examples = task.get_dev_examples()
+            results = runner.run_train_val(
+                train_examples=train_examples,
+                val_examples=val_examples,
+                task_name=task.name,
+            )
+            metrics_str = json.dumps(results, indent=2)
+            with open(os.path.join(args.output_dir, "val_metrics_history.json"), "w") as f:
+                f.write(metrics_str)
+        elif args.train_save_every:
+            train_dataloader = runner.get_train_dataloader(train_examples, verbose=not args.not_verbose)
+            for epoch in range(int(args.num_train_epochs)):
+                for step, _, _ in runner.run_train_epoch_context(train_dataloader):
+                    if step % args.train_save_every == args.train_save_every - 1 \
+                            or step == len(train_dataloader) - 1:
+                        glue_model_setup.save_bert(
+                            model=model, optimizer=optimizer, args=args,
+                            save_path=os.path.join(
+                                args.output_dir, f"all_state___epoch{epoch:04d}___batch{step:06d}.p"
+                            ),
+                            save_mode=args.bert_save_mode,
+                            verbose=not args.not_verbose,
+                        )
+        elif args.train_save_every_epoch:
+            train_dataloader = runner.get_train_dataloader(train_examples, verbose=not args.not_verbose)
+            for epoch in range(int(args.num_train_epochs)):
+                runner.run_train_epoch(train_dataloader)
+                glue_model_setup.save_bert(
+                    model=model,
+                    optimizer=optimizer, args=args,
+                    save_path=os.path.join(
+                        args.output_dir, f"all_state___epoch{epoch:04d}.p"
+                    ),
+                    save_mode=args.bert_save_mode,
+                    verbose=not args.not_verbose,
+                )
+        else:
+            runner.run_train(train_examples)
+
+    if args.do_save:
+        # Save a trained model
+        glue_model_setup.save_bert(
+            model=model, optimizer=optimizer, args=args,
+            save_path=os.path.join(args.output_dir, "all_state.p"),
+            save_mode=args.bert_save_mode,
+        )
+
+    """
+    if args.do_val:
+        val_examples = task.get_dev_examples()
+        results = runner.run_val(val_examples, task_name=task.name, verbose=not args.not_verbose)
+        df = pd.DataFrame(results["logits"])
+        df.to_csv(os.path.join(args.output_dir, "val_preds.csv"), header=False, index=False)
+        metrics_str = json.dumps({"loss": results["loss"], "metrics": results["metrics"]}, indent=2)
+        print(metrics_str)
+        with open(os.path.join(args.output_dir, "val_metrics.json"), "w") as f:
+            f.write(metrics_str)
+
+    if args.do_test:
+        test_examples = task.get_test_examples()
+        logits = runner.run_test(test_examples, verbose=not args.not_verbose)
+        df = pd.DataFrame(logits)
+        df.to_csv(os.path.join(args.output_dir, "test_preds.csv"), header=False, index=False)
+    """
+
+
+if __name__ == "__main__":
+    main()
