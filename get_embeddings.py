@@ -16,7 +16,6 @@ BERT_MODEL_NAME = "bert-large-uncased"
 # conf_file = "/Users/thibault/.pytorch_pretrained_bert/"
 # os.environ["BERT_ALL_DIR"] = conf_file
 
-rte_path = "/Users/thibault/Downloads/mnli__rte.p"
 
 
 def convert_examples_to_features(
@@ -202,7 +201,7 @@ def main():
     )
     logger.info("Initializing model")
     model = load_bert(
-        "EXTRACTION", BERT_MODEL_NAME, "model_only", all_state, 1
+        "EXTRACTION", BERT_MODEL_NAME, "state_model_only", all_state, 1
     ).to(args.device)
     model.eval()
     logger.info("Getting task %s", task.name)
