@@ -1,6 +1,7 @@
 import collections as col
 import logging
 import numpy as np
+from dataclasses import dataclass
 from tqdm import tqdm, trange
 
 import torch
@@ -20,12 +21,12 @@ class LabelModes:
     REGRESSION = "REGRESSION"
 
 
+@dataclass
 class TrainEpochState:
-    def __init__(self):
-        self.tr_loss = 0
-        self.global_step = 0
-        self.nb_tr_examples = 0
-        self.nb_tr_steps = 0
+    tr_loss: float = 0
+    global_step: int = 0
+    nb_tr_examples: int = 0
+    nb_tr_steps: int = 0
 
     def __str__(self):
         s = f"global_step: {self.global_step}, tr_loss: {self.tr_loss}, " \

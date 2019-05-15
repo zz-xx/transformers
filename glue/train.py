@@ -5,10 +5,11 @@ import pandas as pd
 
 import logging
 
-from glue.tasks import get_task, MnliMismatchedProcessor
+from glue.tasks import get_task, MnliMismatchedProcessor, TaskType
 from glue.runners import GlueTaskRunner, RunnerParameters
 from glue import model_setup as glue_model_setup
 from shared import model_setup as shared_model_setup
+import shared.utils as shared_utils
 from pytorch_pretrained_bert.utils import at_most_one_of, random_sample
 import shared.initialization as initialization
 import shared.log_info as log_info
@@ -122,6 +123,11 @@ def get_args(*in_args):
     parser.add_argument('--print-trainable-params', action="store_true")
     parser.add_argument('--not-verbose', action="store_true")
     parser.add_argument('--force-overwrite', action="store_true")
+
+    # Temporary modifications
+    parser.add_argument('--kaiming_init', action="store_true")
+    parser.add_argument('--train_val_every', type=int, default=None)
+
     args = parser.parse_args(*in_args)
     return args
 
@@ -201,10 +207,20 @@ def main():
         )
     )
 
+    if args.kaiming_init:
+        print("Using Kaiming init")
+        if task.processor.TASK_TYPE == TaskType.CLASSIFICATION:
+            model.classifier.reset_parameters()
+        elif task.processor.TASK_TYPE == TaskType.REGRESSION:
+            model.regressor.reset_parameters()
+        else:
+            raise KeyError(task.processor.TASK_TYPE)
+
     if args.do_train:
         assert at_most_one_of([args.do_val_history,
                                args.train_save_every,
-                               args.train_save_every_epoch])
+                               args.train_save_every_epoch,
+                               args.train_val_every])
         if args.do_val_history:
             val_examples = task.get_dev_examples()
             results = runner.run_train_val(
@@ -212,9 +228,7 @@ def main():
                 val_examples=val_examples,
                 task_name=task.name,
             )
-            metrics_str = json.dumps(results, indent=2)
-            with open(os.path.join(args.output_dir, "val_metrics_history.json"), "w") as f:
-                f.write(metrics_str)
+            shared_utils.write_json(results, os.path.join(args.output_dir, "val_metrics_history.json"))
         elif args.train_save_every:
             train_dataloader = runner.get_train_dataloader(train_examples, verbose=not args.not_verbose)
             for epoch in range(int(args.num_train_epochs)):
@@ -242,6 +256,38 @@ def main():
                     save_mode=args.bert_save_mode,
                     verbose=not args.not_verbose,
                 )
+        elif args.train_val_every:
+            # temporary mode, before rethinking refactor
+            val_examples = task.get_dev_examples()
+            val_history = []
+            train_dataloader = runner.get_train_dataloader(train_examples, verbose=not args.not_verbose)
+            for epoch in range(int(args.num_train_epochs)):
+                for step, _, train_epoch_state in runner.run_train_epoch_context(train_dataloader):
+                    if step % args.train_val_every == args.train_val_every - 1 \
+                            or step == len(train_dataloader) - 1:
+                        results = runner.run_val(
+                            val_examples=val_examples,
+                            task_name=task.name,
+                            verbose=not args.not_verbose,
+                        )
+                        del results["logits"]
+                        val_history.append({
+                            "epoch": epoch,
+                            "steps": train_epoch_state.nb_tr_steps,
+                            "result": results,
+                        })
+                results = runner.run_val(
+                    val_examples=val_examples,
+                    task_name=task.name,
+                    verbose=not args.not_verbose,
+                )
+                del results["logits"]
+                val_history.append({
+                    "epoch": epoch,
+                    "steps": len(train_dataloader),
+                    "result": results,
+                })
+            shared_utils.write_json(val_history, os.path.join(args.output_dir, "val_metrics_history.json"))
         else:
             runner.run_train(train_examples)
 

@@ -1,3 +1,4 @@
+import json
 import numpy as np
 
 
@@ -46,3 +47,12 @@ def convert_word_idx_for_bert_tokens(text, bert_tokens, word_idx_ls, check=True)
 
 def bert_tokens_to_text(bert_tokens):
     return "".join(bert_tokens).replace("##", "")
+
+
+def write_file(string, path):
+    with open(path, "w") as f:
+        f.write(string)
+
+
+def write_json(data, path):
+    write_file(json.dumps(data, indent=2), path=path)
