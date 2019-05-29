@@ -43,7 +43,8 @@ class TokenizedExample(BaseTokenizedExample):
             tokens_ls=[self.paragraph],
             max_length=max_seq_length - 4 - len(self.question) - len(self.answer),
         )[0]
-        tokens = [CLS] + paragraph + [SEP] + self.question + [SEP] + self.answer + [SEP]
+        # tokens = [CLS] + paragraph + [SEP] + self.question + [SEP] + self.answer + [SEP]
+        tokens = [CLS] + paragraph + self.question + [SEP] + self.answer + [SEP]
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
         segment_ids = (

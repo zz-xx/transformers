@@ -1,6 +1,7 @@
 import os
 
 import torch
+from torch.optim import Adam
 
 from pytorch_pretrained_bert.optimization import BertAdam
 from pytorch_pretrained_bert.tokenization import (
@@ -72,8 +73,10 @@ def get_opt_train_steps(num_train_examples, args):
     return t_total
 
 
-def create_optimizer(model, learning_rate, t_total, loss_scale, fp16, warmup_proportion, state_dict):
+def create_optimizer(model, learning_rate, t_total, loss_scale, fp16, warmup_proportion, state_dict,
+                     optimizer_type):
     # Prepare optimizer
+    assert optimizer_type in ("bert_adam", "adam")
     param_optimizer = list(model.named_parameters())
     no_decay = [
         'bias', 'LayerNorm.bias', 'LayerNorm.weight',
@@ -90,7 +93,7 @@ def create_optimizer(model, learning_rate, t_total, loss_scale, fp16, warmup_pro
         except ImportError:
             raise ImportError("Please install apex from https://www.github.com/nvidia/apex "
                               "to use distributed and fp16 training.")
-
+        assert optimizer_type == "bert_adam"
         optimizer = FusedAdam(optimizer_grouped_parameters,
                               lr=learning_rate,
                               bias_correction=False,
@@ -101,10 +104,18 @@ def create_optimizer(model, learning_rate, t_total, loss_scale, fp16, warmup_pro
             optimizer = FP16_Optimizer(optimizer, static_loss_scale=loss_scale)
 
     else:
-        optimizer = BertAdam(optimizer_grouped_parameters,
-                             lr=learning_rate,
-                             warmup=warmup_proportion,
-                             t_total=t_total)
+        if optimizer_type == "bert_adam":
+            optimizer = BertAdam(optimizer_grouped_parameters,
+                                 lr=learning_rate,
+                                 warmup=warmup_proportion,
+                                 t_total=t_total)
+        elif optimizer_type == "adam":
+            optimizer = Adam(model.parameters(),
+                             weight_decay=0.01,
+                             amsgrad=True,
+                             lr=learning_rate)
+        else:
+            raise KeyError(optimizer_type)
 
     if state_dict is not None:
         optimizer.load_state_dict(state_dict)
