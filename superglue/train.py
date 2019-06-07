@@ -125,6 +125,8 @@ def get_args(*in_args):
     parser.add_argument('--not-verbose', action="store_true")
     parser.add_argument('--force-overwrite', action="store_true")
     parser.add_argument('--optimizer_type', type=str, default="bert_adam")
+    parser.add_argument('--kaiming_init', action="store_true")
+
     args = parser.parse_args(*in_args)
     return args
 
@@ -203,6 +205,11 @@ def main():
             train_batch_size=args.train_batch_size, eval_batch_size=args.eval_batch_size,
         )
     )
+
+    if args.kaiming_init:
+        print("Using Kaiming init")
+        assert args.task_name == "rte"
+        model.classifier.reset_parameters()
 
     if args.do_train:
         assert at_most_one_of([args.do_val_history,
