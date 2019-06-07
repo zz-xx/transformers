@@ -14,122 +14,101 @@ from pytorch_pretrained_bert.utils import at_most_one_of, random_sample
 import shared.initialization as initialization
 import shared.log_info as log_info
 
-# todo: cleanup imports
+from zconf import BaseConfiguration, zconfig, argparse_attr
 
 
-def get_args(*in_args):
-    parser = argparse.ArgumentParser()
-
+@zconfig
+class RunConfiguration(BaseConfiguration):
     # === Required parameters === #
-    parser.add_argument("--data_dir",
-                        default=None,
-                        type=str,
-                        help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--bert_model", default=None, type=str, required=True,
-                        help="Bert pre-trained model selected in the list: bert-base-uncased, "
-                        "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
-                        "bert-base-multilingual-cased, bert-base-chinese.")
-    parser.add_argument("--task_name",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The name of the task to train.")
-    parser.add_argument("--output_dir",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The output directory where the model predictions and checkpoints will be written.")
+    data_dir = argparse_attr(default=None,
+                             type=str,
+                             help="The input data dir. Should contain the .tsv files (or other"
+                                  " data files) for the task.")
+    bert_model = argparse_attr(default=None, type=str, required=True,
+                               help="Bert pre-trained model selected in the list:"
+                                    " bert-base-uncased, bert-large-uncased, bert-base-cased,"
+                                    " bert-large-cased, bert-base-multilingual-uncased,"
+                                    " bert-base-multilingual-cased, bert-base-chinese.")
+    task_name = argparse_attr(default=None,
+                              type=str,
+                              required=True,
+                              help="The name of the task to train.")
+    output_dir = argparse_attr(default=None,
+                               type=str,
+                               required=True,
+                               help="The output directory where the model predictions and checkpoints will be written.")
 
     # === Model parameters === #
-    parser.add_argument("--bert_load_path", default=None, type=str)
-    parser.add_argument("--bert_load_mode", default="from_pretrained", type=str,
-                        help="from_pretrained, model_only, state_model_only, state_all")
-    parser.add_argument("--bert_load_args", default=None, type=str)
-    parser.add_argument("--bert_config_json_path", default=None, type=str)
-    parser.add_argument("--bert_vocab_path", default=None, type=str)
-    parser.add_argument("--bert_save_mode", default="all", type=str)
+    bert_load_path = argparse_attr(default=None, type=str)
+    bert_load_mode = argparse_attr(default="from_pretrained", type=str,
+                                   help="from_pretrained, model_only, state_model_only, state_all")
+    bert_load_args = argparse_attr(default=None, type=str)
+    bert_config_json_path = argparse_attr(default=None, type=str)
+    bert_vocab_path = argparse_attr(default=None, type=str)
+    bert_save_mode = argparse_attr(default="all", type=str)
 
     # === Other parameters === #
-    parser.add_argument("--max_seq_length",
-                        default=128,
-                        type=int,
-                        help="The maximum total input sequence length after WordPiece tokenization. \n"
-                             "Sequences longer than this will be truncated, and sequences shorter \n"
-                             "than this will be padded.")
-    parser.add_argument("--do_save", action="store_true")
-    parser.add_argument("--do_train",
-                        action='store_true',
-                        help="Whether to run training.")
-    parser.add_argument("--do_val",
-                        action='store_true',
-                        help="Whether to run eval on the dev set.")
-    parser.add_argument("--do_test",
-                        action='store_true',
-                        help="Whether to run eval on the test set.")
-    parser.add_argument("--do_val_history",
-                        action='store_true',
-                        help="")
-    parser.add_argument("--train_examples_number", type=int, default=None)
-    parser.add_argument("--train_save_every", type=int, default=None)
-    parser.add_argument("--train_save_every_epoch", action="store_true")
-    parser.add_argument("--do_lower_case",
-                        action='store_true',
-                        help="Set this flag if you are using an uncased model.")
-    parser.add_argument("--train_batch_size",
-                        default=32,
-                        type=int,
-                        help="Total batch size for training.")
-    parser.add_argument("--eval_batch_size",
-                        default=32,
-                        type=int,
-                        help="Total batch size for eval.")
-    parser.add_argument("--learning_rate",
-                        default=5e-5,
-                        type=float,
-                        help="The initial learning rate for Adam.")
-    parser.add_argument("--num_train_epochs",
-                        default=3.0,
-                        type=float,
-                        help="Total number of training epochs to perform.")
-    parser.add_argument("--warmup_proportion",
-                        default=0.1,
-                        type=float,
-                        help="Proportion of training to perform linear learning rate warmup for. "
-                             "E.g., 0.1 = 10%% of training.")
-    parser.add_argument("--no_cuda",
-                        action='store_true',
-                        help="Whether not to use CUDA when available")
-    parser.add_argument("--local_rank",
-                        type=int,
-                        default=-1,
-                        help="local_rank for distributed training on gpus")
-    parser.add_argument('--seed',
-                        type=int,
-                        default=-1,
-                        help="random seed for initialization")
-    parser.add_argument('--gradient_accumulation_steps',
-                        type=int,
-                        default=1,
-                        help="Number of updates steps to accumulate before performing a backward/update pass.")
-    parser.add_argument('--fp16',
-                        action='store_true',
-                        help="Whether to use 16-bit float precision instead of 32-bit")
-    parser.add_argument('--loss_scale',
-                        type=float, default=0,
-                        help="Loss scaling to improve fp16 numeric stability. "
-                             "Only used when fp16 set to True.\n"
-                             "0 (default value): dynamic loss scaling.\n"
-                             "Positive power of 2: static loss scaling value.\n")
-    parser.add_argument('--print-trainable-params', action="store_true")
-    parser.add_argument('--not-verbose', action="store_true")
-    parser.add_argument('--force-overwrite', action="store_true")
+    max_seq_length = argparse_attr(default=128,
+                                   type=int,
+                                   help="The maximum total input sequence length after WordPiece tokenization. \n"       
+                                        "Sequences longer than this will be truncated, and sequences shorter \n"
+                                        "than this will be padded.")
+    do_save = argparse_attr(action="store_true")
+    do_train = argparse_attr(action='store_true',
+                             help="Whether to run training.")
+    do_val = argparse_attr(action='store_true',
+                           help="Whether to run eval on the dev set.")
+    do_test = argparse_attr(action='store_true',
+                            help="Whether to run eval on the test set.")
+    do_val_history = argparse_attr(action='store_true',
+                                   help="")
+    train_examples_number = argparse_attr(type=int, default=None)
+    train_save_every = argparse_attr(type=int, default=None)
+    train_save_every_epoch = argparse_attr(action="store_true")
+    do_lower_case = argparse_attr(action='store_true',
+                                  help="Set this flag if you are using an uncased model.")
+    train_batch_size = argparse_attr(default=32,
+                                     type=int,
+                                     help="Total batch size for training.")
+    eval_batch_size = argparse_attr(default=32,
+                                    type=int,
+                                    help="Total batch size for eval.")
+    learning_rate = argparse_attr(default=5e-5,
+                                  type=float,
+                                  help="The initial learning rate for Adam.")
+    num_train_epochs = argparse_attr(default=3.0,
+                                     type=float,
+                                     help="Total number of training epochs to perform.")
+    warmup_proportion = argparse_attr(default=0.1,
+                                      type=float,
+                                      help="Proportion of training to perform linear learning rate warmup for. "
+                                      "E.g., 0.1 = 10%% of training.")
+    no_cuda = argparse_attr(action='store_true',
+                            help="Whether not to use CUDA when available")
+    local_rank = argparse_attr(type=int,
+                               default=-1,
+                               help="local_rank for distributed training on gpus")
+    seed = argparse_attr(type=int,
+                         default=-1,
+                         help="random seed for initialization")
+    gradient_accumulation_steps = argparse_attr(type=int,
+                                                default=1,
+                                                help="Number of updates steps to accumulate before"
+                                                     " performing a backward/update pass.")
+    fp16 = argparse_attr(action='store_true',
+                         help="Whether to use 16-bit float precision instead of 32-bit")
+    loss_scale = argparse_attr(type=float, default=0,
+                               help="Loss scaling to improve fp16 numeric stability. "
+                                    "Only used when fp16 set to True.\n"
+                                    "0 (default value): dynamic loss scaling.\n"
+                                    "Positive power of 2: static loss scaling value.\n")
+    print_trainable_params = argparse_attr(action="store_true")
+    not_verbose = argparse_attr(action="store_true")
+    force_overwrite = argparse_attr(action="store_true")
 
     # Temporary modifications
-    parser.add_argument('--kaiming_init', action="store_true")
-    parser.add_argument('--train_val_every', type=int, default=None)
-
-    args = parser.parse_args(*in_args)
-    return args
+    kaiming_init = argparse_attr(action="store_true")
+    train_val_every = argparse_attr(type=int, default=None)
 
 
 def main():
@@ -137,7 +116,7 @@ def main():
                         datefmt='%m/%d/%Y %H:%M:%S',
                         level=logging.INFO)
     logger = logging.getLogger(__name__)
-    args = get_args()
+    args = BaseConfiguration.parse_configuration()
     log_info.print_args(args)
 
     device, n_gpu = initialization.init_cuda_from_args(args, logger=logger)
@@ -185,6 +164,7 @@ def main():
             fp16=args.fp16,
             warmup_proportion=args.warmup_proportion,
             state_dict=all_state["optimizer"] if args.bert_load_mode == "state_all" else None,
+            optimizer_type="bert_adam",
         )
     else:
         train_examples = None
