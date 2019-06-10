@@ -59,6 +59,9 @@ def get_args(*in_args):
     parser.add_argument("--do_train",
                         action='store_true',
                         help="Whether to run training.")
+    parser.add_argument("--do_train_eval",
+                        action="store_true",
+                        help="Whether to run eval on the train set.")
     parser.add_argument("--do_val",
                         action='store_true',
                         help="Whether to run eval on the dev set.")
@@ -252,6 +255,18 @@ def main():
             save_path=os.path.join(args.output_dir, "all_state.p"),
             save_mode=args.bert_save_mode,
         )
+
+    # When filtering, we want to predict for train
+    if args.do_train_eval:
+        train_examples = task.get_train_examples()
+        results = runner.run_val(train_examples, task_name=task.name, verbose=not args.not_verbose)
+        df = pd.DataFrame(results["logits"])
+        df.to_csv(os.path.join(args.output_dir, "train_preds.csv"), header=False, index=False)
+        metrics_str = json.dumps({"loss": results["loss"], "metrics": results["metrics"]}, indent=2)
+        print(metrics_str)
+        with open(os.path.join(args.output_dir, "train_agreement_metrics.json"), "w") as f:
+            f.write(metrics_str)
+
 
     if args.do_val:
         val_examples = task.get_dev_examples()
