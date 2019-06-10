@@ -22,6 +22,21 @@ class DatasetWithMetadata:
     metadata: Dict
 
 
+@dataclass
+class RunnerParameters:
+    max_seq_length: int
+    local_rank: int
+    n_gpu: int
+    fp16: bool
+    learning_rate: float
+    gradient_accumulation_steps: int
+    t_total: int
+    warmup_proportion: float
+    num_train_epochs: float
+    train_batch_size: int
+    eval_batch_size: int
+
+
 def full_batch_to_dataset(full_batch):
     dataset_ls = []
     others_dict = {}

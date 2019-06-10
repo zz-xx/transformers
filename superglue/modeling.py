@@ -220,6 +220,38 @@ class WiCModel(BertForSpanComparisonClassification, TaskModel):
         return self.forward_batch(batch.new(label_ids=None))
 
 
+class YelpPolarityModel(BertForSequenceClassification, TaskModel):
+    def __init__(self, config):
+        super().__init__(config, num_labels=2)
+
+    def forward_batch(self, batch):
+        return self(
+            input_ids=batch.input_ids,
+            token_type_ids=batch.segment_ids,
+            attention_mask=batch.input_mask,
+            labels=batch.label_ids,
+        )
+
+    def forward_batch_hide_label(self, batch):
+        return self.forward_batch(batch.new(label_ids=None))
+
+
+class AmazonPolarityModel(BertForSequenceClassification, TaskModel):
+    def __init__(self, config):
+        super().__init__(config, num_labels=2)
+
+    def forward_batch(self, batch):
+        return self(
+            input_ids=batch.input_ids,
+            token_type_ids=batch.segment_ids,
+            attention_mask=batch.input_mask,
+            labels=batch.label_ids,
+        )
+
+    def forward_batch_hide_label(self, batch):
+        return self.forward_batch(batch.new(label_ids=None))
+
+
 def map_task_to_model_class(task):
     if isinstance(task, tasks.CommitmentBankTask):
         model_class = CBModel
@@ -233,6 +265,10 @@ def map_task_to_model_class(task):
         model_class = WSCModel
     elif isinstance(task, tasks.WiCTask):
         model_class = WiCModel
+    elif isinstance(task, tasks.YelpPolarityTask):
+        model_class = YelpPolarityModel
+    elif isinstance(task, tasks.AmazonPolarityTask):
+        model_class = AmazonPolarityModel
     else:
         raise KeyError(task)
     return model_class

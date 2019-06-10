@@ -6,6 +6,8 @@ from .multirc import MultiRCTask
 from .rte import RteTask
 from .wic import WiCTask
 from .wsc import WSCTask
+from .yelp import YelpPolarityTask
+from .amazon import AmazonPolarityTask
 
 
 TASK_DICT = {
@@ -15,6 +17,8 @@ TASK_DICT = {
     "rte": RteTask,
     "wic": WiCTask,
     "wsc": WSCTask,
+    "yelp_polarity": YelpPolarityTask,
+    "amzn_polarity": AmazonPolarityTask,
 }
 
 DEFAULT_FOLDER_NAMES = {
@@ -24,6 +28,8 @@ DEFAULT_FOLDER_NAMES = {
     "rte": "RTE",
     "wic": "WiC",
     "wsc": "WSC",
+    "yelp_polarity": "YelpPolarity",
+    "amzn_polarity": "AmazonPolarity",
 }
 
 

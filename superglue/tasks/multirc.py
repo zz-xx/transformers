@@ -43,7 +43,8 @@ class TokenizedExample(BaseTokenizedExample):
             tokens_ls=[self.paragraph],
             max_length=max_seq_length - 4 - len(self.question) - len(self.answer),
         )[0]
-        tokens = [CLS] + paragraph + [SEP] + self.question + [SEP] + self.answer + [SEP]
+        # tokens = [CLS] + paragraph + [SEP] + self.question + [SEP] + self.answer + [SEP]
+        tokens = [CLS] + paragraph + self.question + [SEP] + self.answer + [SEP]
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
         segment_ids = (
@@ -123,6 +124,7 @@ class MultiRCTask(Task):
 
     def _create_examples(self, lines, set_type):
         examples = []
+        question_id = 0
         for line in lines:
             soup = bs4.BeautifulSoup(line["paragraph"]["text"], features="lxml")
             sentence_ls = []
@@ -130,7 +132,7 @@ class MultiRCTask(Task):
                 if isinstance(elem, bs4.element.NavigableString):
                     sentence_ls.append(str(elem).strip())
 
-            for question_id, question_dict in enumerate(line["paragraph"]["questions"]):
+            for question_dict in line["paragraph"]["questions"]:
                 question = question_dict["question"]
                 if self.filter_sentences:
                     paragraph = " ".join(
@@ -150,4 +152,5 @@ class MultiRCTask(Task):
                         label=answer_dict["isAnswer"] if set_type != "test" else self.LABELS[-1],
                         question_id=question_id,
                     ))
+                question_id += 1
         return examples

@@ -59,6 +59,9 @@ def get_seed(seed):
         return seed
 
 
-def save_args(args):
+def save_args(args, verbose=True):
+    formatted_args = json.dumps(vars(args), indent=2)
     with open(os.path.join(args.output_dir, "args.json"), "w") as f:
-        f.write(json.dumps(vars(args), indent=2))
+        f.write(formatted_args)
+    if verbose:
+        print(formatted_args)

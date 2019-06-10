@@ -124,6 +124,7 @@ def get_args(*in_args):
     parser.add_argument('--print-trainable-params', action="store_true")
     parser.add_argument('--not-verbose', action="store_true")
     parser.add_argument('--force-overwrite', action="store_true")
+    parser.add_argument('--optimizer_type', type=str, default="bert_adam")
     args = parser.parse_args(*in_args)
     return args
 
@@ -180,6 +181,7 @@ def main():
             fp16=args.fp16,
             warmup_proportion=args.warmup_proportion,
             state_dict=all_state["optimizer"] if args.bert_load_mode == "state_all" else None,
+            optimizer_type=args.optimizer_type,
         )
     else:
         train_examples = None
