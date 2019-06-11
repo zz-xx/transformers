@@ -188,6 +188,7 @@ def main():
             fp16=args.fp16,
             warmup_proportion=args.warmup_proportion,
             state_dict=all_state["optimizer"] if args.bert_load_mode == "state_all" else None,
+            optimizer_type="adam",
         )
     else:
         train_examples = None
