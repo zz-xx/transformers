@@ -38,6 +38,7 @@ from ...modeling_utils import (
     prune_linear_layer,
 )
 from ...utils import logging
+from ...utils.model_parallel_utils import assert_device_map, get_device_map
 from .configuration_longformer import LongformerConfig
 
 
@@ -405,7 +406,7 @@ def _get_question_end_index(input_ids, sep_token_id):
     return sep_token_indices.view(batch_size, 3, 2)[:, 0, 1]
 
 
-def _compute_global_attention_mask(input_ids, sep_token_id, before_sep_token=True):
+def _compute_global_attention_mask(input_ids, sep_token_id, pad_token_id, before_sep_token=True, max_global_attn=None):
     """
     Computes global attention mask by putting attention on all tokens before `sep_token_id` if `before_sep_token is
     True` else after `sep_token_id`.
@@ -417,10 +418,17 @@ def _compute_global_attention_mask(input_ids, sep_token_id, before_sep_token=Tru
     if before_sep_token is True:
         attention_mask = (attention_mask.expand_as(input_ids) < question_end_index).to(torch.uint8)
     else:
-        # last token is separation token and should not be counted and in the middle are two separation tokens
-        attention_mask = (attention_mask.expand_as(input_ids) > (question_end_index + 1)).to(torch.uint8) * (
-            attention_mask.expand_as(input_ids) < input_ids.shape[-1]
-        ).to(torch.uint8)
+        if max_global_attn is None:
+            max_global_attn = input_ids.shape[1]  # More than sufficient
+        # else:
+        #     print("Using max global attn", max_global_attn)
+        attention_mask = (
+            (attention_mask.expand_as(input_ids) > question_end_index).to(torch.uint8)
+            * (attention_mask.expand_as(input_ids) < (question_end_index + 1 + max_global_attn)).to(torch.uint8)
+            * (input_ids != pad_token_id).to(torch.uint8)
+            * (input_ids != sep_token_id).to(torch.uint8)
+        )
+        print("Using max global attn", attention_mask.sum(-1))
 
     return attention_mask
 
@@ -2008,7 +2016,11 @@ class LongformerForQuestionAnswering(LongformerPreTrainedModel):
                 )
             else:
                 # set global attention on question tokens automatically
-                global_attention_mask = _compute_global_attention_mask(input_ids, self.config.sep_token_id)
+                global_attention_mask = _compute_global_attention_mask(
+                    input_ids,
+                    self.config.sep_token_id,
+                    self.config.pad_token_id,
+                    max_global_attn=self.config.max_global_attn)
 
         outputs = self.longformer(
             input_ids,
@@ -2172,6 +2184,43 @@ class LongformerForMultipleChoice(LongformerPreTrainedModel):
 
         self.init_weights()
 
+        self.model_parallel = False
+        self.device_map = None
+
+    @add_start_docstrings("")
+    def parallelize(self, device_map=None):
+        num_layers = len(self.longformer.encoder.layer)
+        self.device_map = (
+            get_device_map(num_layers, range(torch.cuda.device_count()))
+            if device_map is None
+            else device_map
+        )
+        self.first_device = "cpu" if "cpu" in self.device_map.keys() else "cuda:" + str(min(self.device_map.keys()))
+        self.last_device = "cuda:" + str(max(self.device_map.keys()))
+        assert_device_map(self.device_map, num_layers)
+        self.longformer.embeddings = self.longformer.embeddings.to(self.first_device)
+        for k, v in self.device_map.items():
+            for layer_i in v:
+                cuda_device = "cuda:" + str(k)
+                self.longformer.encoder.layer[layer_i] = self.longformer.encoder.layer[layer_i].to(cuda_device)
+        self.longformer.pooler = self.longformer.pooler.to(self.last_device)
+        self.classifier = self.classifier.to(self.last_device)
+        self.model_parallel = True
+
+    @add_start_docstrings("")
+    def deparallelize(self):
+        num_layers = len(self.longformer.encoder.layer)
+        self.model_parallel = False
+        self.device_map = None
+        self.first_device = "cpu"
+        self.last_device = "cpu"
+        self.longformer.embeddings = self.longformer.embeddings.to("cpu")
+        for layer_i in range(num_layers):
+            self.longformer.encoder.layer[layer_i] = self.longformer.encoder.layer[layer_i].to("cpu")
+        self.longformer.pooler = self.longformer.pooler.to("cpu")
+        self.classifier = self.classifier.to("cpu")
+        torch.cuda.empty_cache()
+
     @add_start_docstrings_to_model_forward(
         LONGFORMER_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length")
     )
@@ -2210,7 +2259,12 @@ class LongformerForMultipleChoice(LongformerPreTrainedModel):
             # put global attention on all tokens after `config.sep_token_id`
             global_attention_mask = torch.stack(
                 [
-                    _compute_global_attention_mask(input_ids[:, i], self.config.sep_token_id, before_sep_token=False)
+                    _compute_global_attention_mask(
+                        input_ids[:, i],
+                        self.config.sep_token_id,
+                        self.config.pad_token_id,
+                        before_sep_token=False,
+                        max_global_attn=self.config.max_global_attn)
                     for i in range(num_choices)
                 ],
                 dim=1,

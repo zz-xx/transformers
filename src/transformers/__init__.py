@@ -784,6 +784,7 @@ if is_torch_available():
             "DebertaV2ForQuestionAnswering",
             "DebertaV2ForSequenceClassification",
             "DebertaV2ForTokenClassification",
+            "DebertaV2ForMultipleChoice",
             "DebertaV2Model",
             "DebertaV2PreTrainedModel",
         ]
@@ -959,6 +960,7 @@ if is_torch_available():
             "LEDForConditionalGeneration",
             "LEDForQuestionAnswering",
             "LEDForSequenceClassification",
+            "LEDForMultipleChoice",
             "LEDModel",
             "LEDPreTrainedModel",
         ]
@@ -2600,6 +2602,7 @@ if TYPE_CHECKING:
             DebertaV2ForQuestionAnswering,
             DebertaV2ForSequenceClassification,
             DebertaV2ForTokenClassification,
+            DebertaV2ForMultipleChoice,
             DebertaV2Model,
             DebertaV2PreTrainedModel,
         )

@@ -34,6 +34,7 @@ if is_torch_available():
         "LEDForConditionalGeneration",
         "LEDForQuestionAnswering",
         "LEDForSequenceClassification",
+        "LEDForMultipleChoice",
         "LEDModel",
         "LEDPreTrainedModel",
     ]
@@ -56,6 +57,7 @@ if TYPE_CHECKING:
             LEDForConditionalGeneration,
             LEDForQuestionAnswering,
             LEDForSequenceClassification,
+            LEDForMultipleChoice,
             LEDModel,
             LEDPreTrainedModel,
         )

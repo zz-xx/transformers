@@ -1340,6 +1340,15 @@ class DebertaV2ForTokenClassification:
         requires_backends(cls, ["torch"])
 
 
+class DebertaV2ForMultipleChoice:
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["torch"])
+
+    @classmethod
+    def from_pretrained(cls, *args, **kwargs):
+        requires_backends(cls, ["torch"])
+
+
 class DebertaV2Model:
     def __init__(self, *args, **kwargs):
         requires_backends(self, ["torch"])
