@@ -980,17 +980,9 @@ else:
 
     _import_structure["models.llama"].extend(
         [
-            "LLAMA_PRETRAINED_MODEL_ARCHIVE_LIST",
-            "LLaMAForMaskedLM",
             "LLaMAForCausalLM",
-            "LLaMAForMultipleChoice",
-            "LLaMAForQuestionAnswering",
-            "LLaMAForSequenceClassification",
-            "LLaMAForTokenClassification",
-            "LLaMALayer",
             "LLaMAModel",
             "LLaMAPreTrainedModel",
-            "load_tf_weights_in_llama",
         ]
     )
     _import_structure["models.albert"].extend(
@@ -4505,17 +4497,9 @@ if TYPE_CHECKING:
         # PyTorch model imports
 
         from .models.llama import (
-            LLAMA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LLaMAForMaskedLM,
             LLaMAForCausalLM,
-            LLaMAForMultipleChoice,
-            LLaMAForQuestionAnswering,
-            LLaMAForSequenceClassification,
-            LLaMAForTokenClassification,
-            LLaMALayer,
             LLaMAModel,
             LLaMAPreTrainedModel,
-            load_tf_weights_in_llama,
         )
         from .models.albert import (
             ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,

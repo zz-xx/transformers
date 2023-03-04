@@ -89,24 +89,15 @@ class RMSNorm(torch.nn.Module):
 class LLaMAFeedForward(nn.Module):
     def __init__(
         self,
-        config: LLaMAConfig,
-        multiple_of: int = 256,
+        hidden_size: int,
+        intermediate_size: int,
+        hidden_act: str,
     ):
         super().__init__()
-        hidden_dim = config.hidden_size * 4
-        hidden_dim = int(2 * hidden_dim / 3)
-        hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
-
-        self.w1 = nn.Linear(
-            config.hidden_size, hidden_dim, bias=False
-        )
-        self.w2 = nn.Linear(
-            hidden_dim, config.hidden_size, bias=False
-        )
-        self.w3 = nn.Linear(
-            config.hidden_size, hidden_dim, bias=False
-        )
-        self.act_fn = ACT2FN[config.hidden_act]
+        self.w1 = nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.w2 = nn.Linear(intermediate_size, hidden_size, bias=False)
+        self.w3 = nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.act_fn = ACT2FN[hidden_act]
 
     def forward(self, x):
         return self.w2(self.act_fn(self.w1(x)) * self.w3(x))
@@ -119,7 +110,7 @@ class LLaMAAttention(nn.Module):
         self,
         hidden_size: int,
         num_heads: int,
-        freqs_cis: torch.Tensor,
+        complex_frequencies: torch.Tensor,
     ):
         super().__init__()
         self.hidden_size = hidden_size
@@ -131,27 +122,27 @@ class LLaMAAttention(nn.Module):
                 f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.wq = nn.Linear(
+        self.q_proj = nn.Linear(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.wk = nn.Linear(
+        self.k_proj = nn.Linear(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.wv = nn.Linear(
+        self.v_proj = nn.Linear(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.wo = nn.Linear(
+        self.o_proj = nn.Linear(
             num_heads * self.head_dim,
             hidden_size,
             bias=False,
         )
-        self.freqs_cis = freqs_cis
+        self.complex_frequencies = complex_frequencies
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -170,17 +161,21 @@ class LLaMAAttention(nn.Module):
         bsz, tgt_len, _ = hidden_states.size()
 
         # get query proj
-        query_states = self.wq(hidden_states).view(bsz, tgt_len, self.num_heads, self.head_dim)
-        key_states = self.wk(hidden_states).view(bsz, tgt_len, self.num_heads, self.head_dim)
-        value_states = self.wv(hidden_states).view(bsz, tgt_len, self.num_heads, self.head_dim)
+        query_states = self.q_proj(hidden_states).view(bsz, tgt_len, self.num_heads, self.head_dim)
+        key_states = self.k_proj(hidden_states).view(bsz, tgt_len, self.num_heads, self.head_dim)
+        value_states = self.v_proj(hidden_states).view(bsz, tgt_len, self.num_heads, self.head_dim)
 
         if past_key_value is not None:
             start = past_key_value[0].shape[2]
         else:
             start = 0
 
-        sliced_freqs_cis = self.freqs_cis[start: start + tgt_len]
-        query_states, key_states = apply_rotary_emb(query_states, key_states, freqs_cis=sliced_freqs_cis)
+        sliced_complex_frequencies = self.complex_frequencies[start: start + tgt_len]
+        query_states, key_states = apply_rotary_emb(
+            query_states=query_states,
+            key_states=key_states,
+            complex_frequencies=sliced_complex_frequencies
+        )
 
         # get key, value proj
         key_states = self._shape(key_states, -1, bsz)
@@ -252,7 +247,7 @@ class LLaMAAttention(nn.Module):
 
         attn_output = attn_output.reshape(bsz, tgt_len, self.hidden_size)
 
-        attn_output = self.wo(attn_output)
+        attn_output = self.o_proj(attn_output)
 
         return attn_output, attn_weights_reshaped, past_key_value
 
@@ -261,16 +256,20 @@ class LLaMADecoderLayer(nn.Module):
     def __init__(self, config: LLaMAConfig):
         super().__init__()
         self.hidden_size = config.hidden_size
-        freqs_cis = precompute_freqs_cis(
-            dim=self.hidden_size // config.num_attention_heads,
-            end=config.max_sequence_length * 2,
+        complex_frequencies = precompute_complex_frequencies(
+            head_dim=self.hidden_size // config.num_attention_heads,
+            length=config.max_sequence_length * 2,
         )
         self.self_attn = LLaMAAttention(
             hidden_size=self.hidden_size,
             num_heads=config.num_attention_heads,
-            freqs_cis=freqs_cis,
+            complex_frequencies=complex_frequencies,
         )
-        self.feed_forward = LLaMAFeedForward(config=config)
+        self.feed_forward = LLaMAFeedForward(
+            hidden_size=self.hidden_size,
+            intermediate_size=config.intermediate_size,
+            hidden_act=config.hidden_act,
+        )
         self.attention_norm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.ffn_norm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
@@ -915,30 +914,29 @@ class LLaMAForCausalLM(LLaMAPreTrainedModel):
         return reordered_past
 
 
-def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
-    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
-    t = torch.arange(end, device=freqs.device)  # type: ignore
-    freqs = torch.outer(t, freqs).float()  # type: ignore
-    freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
-    return freqs_cis
+def precompute_complex_frequencies(head_dim: int, length: int, theta: float = 10000.0):
+    frequencies = 1.0 / (theta ** (torch.arange(0, head_dim, 2)[: (head_dim // 2)].float() / head_dim))
+    t = torch.arange(length, device=frequencies.device)
+    frequencies = torch.outer(t, frequencies).float()
+    return torch.polar(torch.ones_like(frequencies), frequencies)  # complex64
 
 
 def apply_rotary_emb(
-    xq: torch.Tensor,
-    xk: torch.Tensor,
-    freqs_cis: torch.Tensor,
+    query_states: torch.Tensor,
+    key_states: torch.Tensor,
+    complex_frequencies: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
-    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
-    freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
-    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
-    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
-    return xq_out.type_as(xq), xk_out.type_as(xk)
+    query_states_complex = torch.view_as_complex(query_states.float().reshape(*key_states.shape[:-1], -1, 2))
+    key_states_complex = torch.view_as_complex(key_states.float().reshape(*key_states.shape[:-1], -1, 2))
+    complex_frequencies = reshape_for_broadcast(complex_frequencies, query_states_complex)
+    output_query_states = torch.view_as_real(query_states_complex * complex_frequencies).flatten(3)
+    output_key_states = torch.view_as_real(key_states_complex * complex_frequencies).flatten(3)
+    return output_query_states.type_as(query_states), output_key_states.type_as(key_states)
 
 
-def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor):
+def reshape_for_broadcast(complex_frequencies: torch.Tensor, x: torch.Tensor):
     ndim = x.ndim
     assert 0 <= 1 < ndim
-    assert freqs_cis.shape == (x.shape[1], x.shape[-1])
+    assert complex_frequencies.shape == (x.shape[1], x.shape[-1])
     shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
-    return freqs_cis.view(*shape)
+    return complex_frequencies.view(*shape)
