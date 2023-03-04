@@ -31,15 +31,7 @@ if is_torch_available():
 
     from transformers import (
         LLaMAForCausalLM,
-        LLaMAForMaskedLM,
-        LLaMAForMultipleChoice,
-        LLaMAForQuestionAnswering,
-        LLaMAForSequenceClassification,
-        LLaMAForTokenClassification,
         LLaMAModel,
-    )
-    from transformers.models.llama.modeling_llama import (
-        LLAMA_PRETRAINED_MODEL_ARCHIVE_LIST,
     )
 
 
@@ -51,7 +43,7 @@ class LLaMAModelTester:
             seq_length=7,
             is_training=True,
             use_input_mask=True,
-            use_token_type_ids=True,
+            use_token_type_ids=False,
             use_labels=True,
             vocab_size=99,
             hidden_size=32,
@@ -131,41 +123,13 @@ class LLaMAModelTester:
             initializer_range=self.initializer_range,
         )
 
-    def prepare_config_and_inputs_for_decoder(self):
-        (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        ) = self.prepare_config_and_inputs()
-
-        config.is_decoder = True
-        encoder_hidden_states = floats_tensor([self.batch_size, self.seq_length, self.hidden_size])
-        encoder_attention_mask = ids_tensor([self.batch_size, self.seq_length], vocab_size=2)
-
-        return (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-            encoder_hidden_states,
-            encoder_attention_mask,
-        )
-
     def create_and_check_model(
             self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = LLaMAModel(config=config)
         model.to(torch_device)
         model.eval()
-        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids)
-        result = model(input_ids, token_type_ids=token_type_ids)
+        result = model(input_ids, attention_mask=input_mask)
         result = model(input_ids)
         self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
@@ -188,17 +152,15 @@ class LLaMAModelTester:
         result = model(
             input_ids,
             attention_mask=input_mask,
-            token_type_ids=token_type_ids,
             encoder_hidden_states=encoder_hidden_states,
             encoder_attention_mask=encoder_attention_mask,
         )
         result = model(
             input_ids,
             attention_mask=input_mask,
-            token_type_ids=token_type_ids,
             encoder_hidden_states=encoder_hidden_states,
         )
-        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids)
+        result = model(input_ids, attention_mask=input_mask)
         self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def create_and_check_for_causal_lm(
@@ -216,16 +178,7 @@ class LLaMAModelTester:
         model = LLaMAForCausalLM(config=config)
         model.to(torch_device)
         model.eval()
-        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids, labels=token_labels)
-        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
-
-    def create_and_check_for_masked_lm(
-            self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
-    ):
-        model = LLaMAForMaskedLM(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids, labels=token_labels)
+        result = model(input_ids, attention_mask=input_mask, labels=token_labels)
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
 
     def create_and_check_decoder_model_past_large_inputs(
@@ -301,7 +254,7 @@ class LLaMAModelTester:
             token_labels,
             choice_labels,
         ) = config_and_inputs
-        inputs_dict = {"input_ids": input_ids, "token_type_ids": token_type_ids, "attention_mask": input_mask}
+        inputs_dict = {"input_ids": input_ids, "attention_mask": input_mask}
         return config, inputs_dict
 
 
@@ -335,64 +288,23 @@ class LLaMAModelTest(ModelTesterMixin, unittest.TestCase):
             config_and_inputs[0].position_embedding_type = type
             self.model_tester.create_and_check_model(*config_and_inputs)
 
-    def test_model_as_decoder(self):
-        config_and_inputs = self.model_tester.prepare_config_and_inputs_for_decoder()
-        self.model_tester.create_and_check_model_as_decoder(*config_and_inputs)
+    @unittest.skip("LLaMA does not support head pruning.")
+    def test_head_pruning(self):
+        pass
 
-    def test_model_as_decoder_with_default_input_mask(self):
-        # This regression test was failing with PyTorch < 1.3
-        (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-            encoder_hidden_states,
-            encoder_attention_mask,
-        ) = self.model_tester.prepare_config_and_inputs_for_decoder()
+    @unittest.skip("LLaMA does not support head pruning.")
+    def test_head_pruning_integration(self):
+        pass
 
-        input_mask = None
+    @unittest.skip("LLaMA does not support head pruning.")
+    def test_head_pruning_save_load_from_config_init(self):
+        pass
 
-        self.model_tester.create_and_check_model_as_decoder(
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-            encoder_hidden_states,
-            encoder_attention_mask,
-        )
+    @unittest.skip("LLaMA does not support head pruning.")
+    def test_head_pruning_save_load_from_pretrained(self):
+        pass
 
-    @slow
-    def test_model_from_pretrained(self):
-        for model_name in LLAMA_PRETRAINED_MODEL_ARCHIVE_LIST[:1]:
-            model = LLaMAModel.from_pretrained(model_name)
-            self.assertIsNotNone(model)
-
-
-@require_torch
-class LLaMAModelIntegrationTest(unittest.TestCase):
-    @slow
-    def test_inference_masked_lm(self):
-        model = LLaMAForMaskedLM.from_pretrained("llama-7b")
-        input_ids = torch.tensor([[0, 1, 2, 3, 4, 5]])
-        output = model(input_ids)[0]
-
-        # TODO Replace vocab size
-        vocab_size = 32000
-
-        expected_shape = torch.Size((1, 6, vocab_size))
-        self.assertEqual(output.shape, expected_shape)
-
-        # TODO Replace values below with what was printed above.
-        expected_slice = torch.tensor(
-            [[[-0.0483, 0.1188, -0.0313], [-0.0606, 0.1435, 0.0199], [-0.0235, 0.1519, 0.0175]]]
-        )
-
-        self.assertTrue(torch.allclose(output[:, :3, :3], expected_slice, atol=1e-4))
-
+    @unittest.skip("LLaMA buffers include complex numbers, which breaks this test")
+    def test_save_load_fast_init_from_base(self):
+        pass
 

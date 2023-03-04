@@ -43,6 +43,8 @@ def write_model(model_path, input_base_path, model_size):
             f"model.decoder.layers.{layer_i}.self_attn.k_proj.weight": checkpoint[f"layers.{layer_i}.attention.wk.weight"],
             f"model.decoder.layers.{layer_i}.self_attn.v_proj.weight": checkpoint[f"layers.{layer_i}.attention.wv.weight"],
             f"model.decoder.layers.{layer_i}.self_attn.o_proj.weight": checkpoint[f"layers.{layer_i}.attention.wo.weight"],
+            f"model.decoder.layers.{layer_i}.complex_frequencies": checkpoint[
+                f"layers.{layer_i}.attention.inner_attention.rope.freqs"],
             f"model.decoder.layers.{layer_i}.feed_forward.w1.weight": checkpoint[f"layers.{layer_i}.feed_forward.w1.weight"],
             f"model.decoder.layers.{layer_i}.feed_forward.w2.weight": checkpoint[f"layers.{layer_i}.feed_forward.w2.weight"],
             f"model.decoder.layers.{layer_i}.feed_forward.w3.weight": checkpoint[f"layers.{layer_i}.feed_forward.w3.weight"],

@@ -142,7 +142,7 @@ class LLaMAAttention(nn.Module):
             hidden_size,
             bias=False,
         )
-        self.complex_frequencies = complex_frequencies
+        self.register_buffer("complex_frequencies", complex_frequencies)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
