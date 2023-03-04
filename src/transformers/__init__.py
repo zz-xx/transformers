@@ -122,6 +122,7 @@ _import_structure = {
     ],
     "models": [],
     # Models
+    "models.llama": ["LLAMA_PRETRAINED_CONFIG_ARCHIVE_MAP", "LLaMAConfig", "LLaMATokenizer"],
     "models.albert": ["ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "AlbertConfig"],
     "models.align": [
         "ALIGN_PRETRAINED_CONFIG_ARCHIVE_MAP",
@@ -695,6 +696,7 @@ except OptionalDependencyNotAvailable:
     ]
 else:
     # Fast tokenizers structure
+    _import_structure["models.llama"].append("LLaMATokenizerFast")
     _import_structure["models.albert"].append("AlbertTokenizerFast")
     _import_structure["models.bart"].append("BartTokenizerFast")
     _import_structure["models.barthez"].append("BarthezTokenizerFast")
@@ -976,6 +978,22 @@ else:
     _import_structure["modeling_utils"] = ["PreTrainedModel"]
 
     # PyTorch models structure
+
+    _import_structure["models.llama"].extend(
+        [
+            "LLAMA_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "LLaMAForMaskedLM",
+            "LLaMAForCausalLM",
+            "LLaMAForMultipleChoice",
+            "LLaMAForQuestionAnswering",
+            "LLaMAForSequenceClassification",
+            "LLaMAForTokenClassification",
+            "LLaMALayer",
+            "LLaMAModel",
+            "LLaMAPreTrainedModel",
+            "load_tf_weights_in_llama",
+        ]
+    )
     _import_structure["models.albert"].extend(
         [
             "ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
@@ -3726,6 +3744,7 @@ if TYPE_CHECKING:
         load_tf2_weights_in_pytorch_model,
     )
     from .models.albert import ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, AlbertConfig
+    from .models.llama import LLAMA_PRETRAINED_CONFIG_ARCHIVE_MAP, LLaMAConfig, LLaMATokenizer
     from .models.align import (
         ALIGN_PRETRAINED_CONFIG_ARCHIVE_MAP,
         AlignConfig,
@@ -4256,6 +4275,7 @@ if TYPE_CHECKING:
         from .utils.dummy_tokenizers_objects import *
     else:
         # Fast tokenizers imports
+        from .models.llama import LLaMATokenizerFast
         from .models.albert import AlbertTokenizerFast
         from .models.bart import BartTokenizerFast
         from .models.barthez import BarthezTokenizerFast
@@ -4485,6 +4505,20 @@ if TYPE_CHECKING:
         from .modeling_utils import PreTrainedModel
 
         # PyTorch model imports
+
+        from .models.llama import (
+            LLAMA_PRETRAINED_MODEL_ARCHIVE_LIST,
+            LLaMAForMaskedLM,
+            LLaMAForCausalLM,
+            LLaMAForMultipleChoice,
+            LLaMAForQuestionAnswering,
+            LLaMAForSequenceClassification,
+            LLaMAForTokenClassification,
+            LLaMALayer,
+            LLaMAModel,
+            LLaMAPreTrainedModel,
+            load_tf_weights_in_llama,
+        )
         from .models.albert import (
             ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
             AlbertForMaskedLM,
