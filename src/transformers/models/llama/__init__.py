@@ -60,14 +60,6 @@ if TYPE_CHECKING:
     from .tokenization_llama import LLaMATokenizer
 
     try:
-        if not is_tokenizers_available():
-            raise OptionalDependencyNotAvailable()
-    except OptionalDependencyNotAvailable:
-        pass
-    else:
-        from .tokenization_llama_fast import LLaMATokenizerFast
-
-    try:
         if not is_torch_available():
             raise OptionalDependencyNotAvailable()
     except OptionalDependencyNotAvailable:

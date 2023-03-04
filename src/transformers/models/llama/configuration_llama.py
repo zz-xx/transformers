@@ -21,8 +21,6 @@ from ...utils import logging
 logger = logging.get_logger(__name__)
 
 LLAMA_PRETRAINED_CONFIG_ARCHIVE_MAP = {
-    "llama-7b": "https://huggingface.co/llama-7b/resolve/main/config.json",
-    # See all LLaMA models at https://huggingface.co/models?filter=llama
 }
 
 
@@ -49,28 +47,22 @@ class LLaMAConfig(PretrainedConfig):
             Number of hidden layers in the Transformer encoder.
         num_attention_heads (`int`, *optional*, defaults to 12):
             Number of attention heads for each attention layer in the Transformer encoder.
-        intermediate_size (`int`, *optional*, defaults to 3072):
-            Dimension of the "intermediate" (i.e., feed-forward) layer in the Transformer encoder.
-        hidden_act (`str` or `function`, *optional*, defaults to `"gelu"`):
-            The non-linear activation function (function or string) in the encoder and pooler.
-            If string, `"gelu"`, `"relu"`, `"selu"` and `"gelu_new"` are supported.
-        hidden_dropout_prob (`float`, *optional*, defaults to 0.1):
-            The dropout probabilitiy for all fully connected layers in the embeddings, encoder, and pooler.
-        attention_probs_dropout_prob (`float`, *optional*, defaults to 0.1):
-            The dropout ratio for the attention probabilities.
-        max_position_embeddings (`int`, *optional*, defaults to 512):
-            The maximum sequence length that this model might ever be used with.
-            Typically set this to something large just in case (e.g., 512 or 1024 or 2048).
+        hidden_act (`str` or `function`, *optional*, defaults to `"silu"`):
+            The non-linear activation function (function or string) in the decoder.
+        max_sequence_length (`int`, *optional*, defaults to 2048):
+            Max sequence length for model (for RoPE computation)
         type_vocab_size (`int`, *optional*, defaults to 2):
             The vocabulary size of the `token_type_ids` passed when calling [`~LLaMAModel`] or
             [`~TFLLaMAModel`].
         initializer_range (`float`, *optional*, defaults to 0.02):
             The standard deviation of the truncated_normal_initializer for initializing all weight matrices.
-        layer_norm_eps (`float`, *optional*, defaults to 1e-12):
-            The epsilon used by the layer normalization layers.
+        rms_norm_eps (`float`, *optional*, defaults to 1e-12):
+            The epsilon used by the rms normalization layers.
         use_cache (`bool`, *optional*, defaults to `True`):
             Whether or not the model should return the last key/values attentions (not used by all models). Only
             relevant if `config.is_decoder=True`.
+        tie_word_embeddings(`bool`, *optional*, defaults to `False`):
+            Whether to tie weight embeddings
         Example:
 
     ```python
@@ -87,45 +79,40 @@ class LLaMAConfig(PretrainedConfig):
     ```
 """
     model_type = "llama"
-    
 
     def __init__(
         self,
-        vocab_size=30522,
-        hidden_size=768,
-        num_hidden_layers=12,
-        num_attention_heads=12,
-        intermediate_size=3072,
-        hidden_act="gelu",
-        hidden_dropout_prob=0.1,
-        attention_probs_dropout_prob=0.1,
-        max_position_embeddings=512,
+        vocab_size=32000,
+        hidden_size=4096,
+        num_hidden_layers=32,
+        num_attention_heads=32,
+        hidden_act="silu",
+        max_sequence_length=2048,
         type_vocab_size=2,
         initializer_range=0.02,
-        layer_norm_eps=1e-12,
+        rms_norm_eps=1e-6,
         use_cache=True,
-        pad_token_id=1,
+        pad_token_id=-1,
         bos_token_id=0,
-        eos_token_id=2,
+        eos_token_id=1,
+        tie_word_embeddings=False,
         **kwargs
     ):
         self.vocab_size = vocab_size
-        self.max_position_embeddings = max_position_embeddings
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
-        self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
-        self.hidden_dropout_prob = hidden_dropout_prob
-        self.attention_probs_dropout_prob = attention_probs_dropout_prob
+        self.max_sequence_length = max_sequence_length
         self.initializer_range = initializer_range
         self.type_vocab_size = type_vocab_size
-        self.layer_norm_eps = layer_norm_eps
+        self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
         super().__init__(
             pad_token_id=pad_token_id,
             bos_token_id=bos_token_id,
             eos_token_id=eos_token_id,
+            tie_word_embeddings=tie_word_embeddings,
             **kwargs
         )
 
